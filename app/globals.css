@@ -1,0 +1,254 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* Meridian design tokens — "hospital chart" system                    */
+/* Calm clinical paper, deep surgical-green ink, hairline rules,       */
+/* monospace for identifiers and measured values.                      */
+/* ------------------------------------------------------------------ */
+
+@theme {
+  --color-paper: #f6f7f6;
+  --color-surface: #ffffff;
+  --color-ink: #1c2b27;
+  --color-muted: #5c6b66;
+  --color-faint: #8b9793;
+  --color-hairline: #dde3e0;
+  --color-hairline-strong: #c3cdc9;
+
+  --color-scrub: #16594a;
+  --color-scrub-deep: #0e4237;
+  --color-scrub-wash: #e9f1ee;
+  --color-scrub-mid: #3d7d6e;
+
+  --color-rail: #12241f;
+  --color-rail-line: #24423a;
+  --color-rail-text: #a7bcb4;
+  --color-rail-bright: #e8f0ed;
+
+  --color-critical: #b42318;
+  --color-critical-wash: #fef3f2;
+  --color-critical-line: #fecdca;
+  --color-warn: #b54708;
+  --color-warn-wash: #fffaeb;
+  --color-warn-line: #fedf89;
+  --color-ok: #067647;
+  --color-ok-wash: #ecfdf3;
+  --color-ok-line: #abefc6;
+  --color-info: #175cd3;
+  --color-info-wash: #eff8ff;
+  --color-info-line: #b2ddff;
+
+  --font-sans: var(--font-plex-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-plex-mono), "SF Mono", Menlo, monospace;
+  --font-display: var(--font-serif-display), Georgia, serif;
+
+  --shadow-card: 0 1px 2px rgba(28, 43, 39, 0.05);
+  --shadow-pop: 0 4px 16px rgba(28, 43, 39, 0.10), 0 1px 3px rgba(28, 43, 39, 0.06);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-scrub);
+  color: #fff;
+}
+
+/* ---------- primitives ---------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.mono-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary { background: var(--color-scrub); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--color-scrub-deep); }
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-hairline-strong);
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--color-scrub); color: var(--color-scrub); }
+
+.btn-ghost { background: transparent; color: var(--color-muted); }
+.btn-ghost:hover:not(:disabled) { color: var(--color-ink); background: var(--color-scrub-wash); }
+
+.field {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  color: var(--color-ink);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--color-scrub);
+  box-shadow: 0 0 0 3px rgba(22, 89, 74, 0.12);
+}
+.field::placeholder { color: var(--color-faint); }
+
+textarea.field { resize: vertical; min-height: 96px; line-height: 1.6; }
+
+.label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: 5px;
+}
+
+/* ---------- data tables ---------- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  text-align: left;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-hairline-strong);
+  background: color-mix(in srgb, var(--color-paper) 60%, var(--color-surface));
+}
+.table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-hairline);
+  vertical-align: top;
+}
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: color-mix(in srgb, var(--color-scrub-wash) 45%, transparent); }
+
+/* ---------- chips ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid;
+  line-height: 1.7;
+}
+.chip-critical { color: var(--color-critical); background: var(--color-critical-wash); border-color: var(--color-critical-line); }
+.chip-high     { color: var(--color-warn); background: var(--color-warn-wash); border-color: var(--color-warn-line); }
+.chip-medium   { color: var(--color-info); background: var(--color-info-wash); border-color: var(--color-info-line); }
+.chip-low      { color: var(--color-ok); background: var(--color-ok-wash); border-color: var(--color-ok-line); }
+.chip-neutral  { color: var(--color-muted); background: var(--color-paper); border-color: var(--color-hairline-strong); }
+
+/* ---------- signature: allergy wristband ---------- */
+
+.allergy-band {
+  position: relative;
+  border: 1px solid var(--color-critical-line);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      var(--color-critical-wash),
+      var(--color-critical-wash) 10px,
+      color-mix(in srgb, var(--color-critical) 7%, var(--color-critical-wash)) 10px,
+      color-mix(in srgb, var(--color-critical) 7%, var(--color-critical-wash)) 20px
+    );
+  border-radius: 6px;
+}
+
+/* ---------- timeline spine ---------- */
+
+.timeline-spine {
+  position: relative;
+}
+.timeline-spine::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--color-hairline-strong);
+}
+.timeline-dot {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-hairline-strong);
+}
+
+/* ---------- misc ---------- */
+
+.divider { border-top: 1px solid var(--color-hairline); }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-rail-text);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.nav-item:hover { color: var(--color-rail-bright); background: rgba(255, 255, 255, 0.05); }
+.nav-item.active {
+  color: var(--color-rail-bright);
+  background: var(--color-rail-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
