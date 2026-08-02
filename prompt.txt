@@ -1,0 +1,687 @@
+
+You are a Principal Software Engineer, SaaS Product Architect, Cloud Architect, UI/UX Engineer, and Healthcare Technology Product Builder with 10+ years of experience building scalable production-grade platforms.
+
+You are responsible for building Phase 1 of a healthcare SaaS product called:
+
+# AVERIS
+
+==================================================
+PRODUCT CONTEXT
+==================================================
+
+AVERIS is not a college-level CRUD application.
+
+AVERIS is being built as a real healthcare technology product that should be:
+
+- Deployable on the internet
+- Presentable at hackathons
+- Strong enough for an MNC-level portfolio
+- Architected for future SaaS monetization
+- Scalable into a healthcare ecosystem
+
+Think like you are building the first version of a healthcare startup.
+
+Do not optimize only for completing features.
+
+Optimize for:
+
+- Product quality
+- User trust
+- Scalability
+- Security
+- Excellent UX
+- Clean engineering practices
+
+
+==================================================
+PRODUCT VISION
+==================================================
+
+AVERIS is an AI-powered personalized healthcare intelligence platform.
+
+The long-term goal:
+
+Help patients create a complete digital health identity where their medical information can be organized, analyzed, and transformed into meaningful healthcare insights.
+
+Future versions of AVERIS will include:
+
+- AI medical document analysis
+- Patient digital twin
+- Disease risk prediction
+- Explainable AI
+- Medical knowledge assistant
+- Health trend forecasting
+- Personalized healthcare recommendations
+
+
+However, this phase focuses only on building the strongest foundation:
+
+PATIENT IDENTITY + HEALTH PROFILE PLATFORM
+
+
+==================================================
+PHASE 1 OBJECTIVE
+==================================================
+
+Build:
+
+AVERIS Patient Portal Foundation
+
+
+A patient should be able to:
+
+1. Discover AVERIS
+2. Create an account
+3. Login securely
+4. Complete health onboarding
+5. Create their personal health profile
+6. Access their private healthcare dashboard
+
+
+==================================================
+PRODUCT NAME REQUIREMENTS
+==================================================
+
+Use AVERIS everywhere.
+
+The product name must appear consistently in:
+
+- Website navbar
+- Landing page
+- Authentication screens
+- Dashboard
+- Browser title
+- Metadata
+- Documentation
+- Application branding
+
+
+Never use temporary names like:
+
+- Healthcare App
+- Medical Platform
+- AI Health App
+- Demo Application
+
+
+The identity should always be:
+
+AVERIS
+
+
+==================================================
+TECH STACK
+==================================================
+
+Frontend:
+
+Use:
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+
+
+Requirements:
+
+- Modern component architecture
+- Reusable UI components
+- Responsive design
+- Production-level folder structure
+
+
+Backend:
+
+Use:
+
+- Supabase
+
+
+Supabase will handle:
+
+- Authentication
+- PostgreSQL database
+- User management
+- Database operations
+
+
+Cloud:
+
+Use:
+
+Google Cloud Platform (GCP)
+
+
+AI Integration:
+
+Use:
+
+Grok API
+
+
+Environment variables:
+
+Create:
+
+.env.example
+
+
+Include placeholders:
+
+
+# Supabase
+
+SUPABASE_URL=
+
+SUPABASE_ANON_KEY=
+
+SUPABASE_SERVICE_ROLE_KEY=
+
+
+# Google Authentication / OAuth
+
+GOOGLE_CLIENT_ID=
+
+GOOGLE_CLIENT_SECRET=
+
+
+# GCP
+
+GCP_PROJECT_ID=
+
+GCP_REGION=
+
+
+# Grok AI
+
+GROK_API_KEY=
+
+
+IMPORTANT:
+
+Never hardcode credentials.
+
+Never expose API keys in frontend code.
+
+
+==================================================
+UI/UX DESIGN REQUIREMENTS
+==================================================
+
+This is one of the most important requirements.
+
+AVERIS should NOT look like a generic AI-generated website.
+
+
+Avoid:
+
+- Purple AI gradients
+- Robot illustrations
+- ChatGPT-style interfaces
+- Futuristic neon designs
+- Excessive glassmorphism
+- Random animations
+- Generic SaaS templates
+
+
+The design should feel like:
+
+- Premium hospital software
+- Modern healthcare institution
+- Enterprise medical platform
+
+
+The feeling should be:
+
+Trust.
+Security.
+Professionalism.
+Human healthcare.
+
+
+The user should think:
+
+"My health data is safe with AVERIS."
+
+
+Design principles:
+
+- Clean typography
+- Excellent spacing
+- Calm healthcare colors
+- Strong accessibility
+- Minimal but premium interface
+- Clear information hierarchy
+
+
+==================================================
+LANDING PAGE
+==================================================
+
+Create a premium healthcare landing page.
+
+Brand:
+
+AVERIS
+
+
+Hero section:
+
+Title:
+
+"Your intelligent healthcare journey starts here."
+
+
+Explain:
+
+AVERIS helps patients organize their health information and create a personalized healthcare profile.
+
+
+Sections:
+
+1. Hero
+
+2. How AVERIS works
+
+3. Patient benefits
+
+4. Security and privacy
+
+5. Future AI capabilities
+
+6. Call to action
+
+
+Primary CTA:
+
+"Create Your AVERIS Profile"
+
+
+The landing page should look like a healthcare startup website, not a student project.
+
+
+==================================================
+AUTHENTICATION SYSTEM
+==================================================
+
+Implement secure patient authentication.
+
+
+Authentication provider:
+
+Supabase Authentication
+
+
+Support:
+
+
+1. Email and Password Authentication
+
+
+Features:
+
+- Signup
+- Login
+- Logout
+- Password validation
+- Session persistence
+
+
+2. Google OAuth Authentication
+
+
+Features:
+
+- Login with Google
+- Automatic account creation
+- Secure OAuth flow
+
+
+After successful authentication:
+
+Create user profile entry automatically.
+
+
+==================================================
+USER ROLE ARCHITECTURE
+==================================================
+
+Design the system for future expansion.
+
+
+Roles:
+
+PATIENT
+
+
+Future:
+
+DOCTOR
+
+HOSPITAL_ADMIN
+
+
+Only implement PATIENT now.
+
+
+Database architecture should support future roles.
+
+
+==================================================
+DATABASE DESIGN
+==================================================
+
+Create a production-ready Supabase PostgreSQL schema.
+
+
+Table:
+
+users
+
+
+Fields:
+
+- id
+- auth_user_id
+- email
+- full_name
+- profile_image
+- role
+- created_at
+- updated_at
+
+
+--------------------------------
+
+
+Table:
+
+patient_profiles
+
+
+Fields:
+
+- id
+- user_id
+- date_of_birth
+- gender
+- phone_number
+- blood_group
+- emergency_contact
+- created_at
+- updated_at
+
+
+--------------------------------
+
+
+Table:
+
+patient_health_information
+
+
+Fields:
+
+- id
+- patient_id
+- allergies
+- existing_conditions
+- current_medications
+- medical_notes
+- created_at
+- updated_at
+
+
+Keep the database normalized and scalable.
+
+
+==================================================
+PATIENT ONBOARDING FLOW
+==================================================
+
+After first login:
+
+Redirect user to AVERIS onboarding.
+
+
+Create a multi-step onboarding experience.
+
+
+STEP 1:
+
+Personal Information
+
+
+Fields:
+
+- Full Name
+- Date of Birth
+- Gender
+- Phone Number
+
+
+--------------------------------
+
+
+STEP 2:
+
+Basic Health Information
+
+
+Fields:
+
+- Blood Group
+- Allergies
+- Existing Conditions
+- Current Medications
+
+
+--------------------------------
+
+
+STEP 3:
+
+Confirmation
+
+
+Display:
+
+
+"Your AVERIS Health Profile has been successfully created."
+
+
+==================================================
+PATIENT DASHBOARD
+==================================================
+
+Create the first version of:
+
+AVERIS Health Dashboard
+
+
+The dashboard should feel like a real healthcare product.
+
+
+Sections:
+
+
+1. Health Profile
+
+Display:
+
+- Name
+- Age
+- Blood Group
+- Basic health information
+
+
+2. Medical Records
+
+Placeholder for future:
+
+AI medical document analysis
+
+
+3. Health Timeline
+
+Placeholder for future:
+
+Medical history timeline
+
+
+4. Health Insights
+
+Placeholder for future:
+
+ML predictions and AI insights
+
+
+Do not build fake AI features yet.
+
+Create the correct product structure for future integration.
+
+
+==================================================
+SECURITY REQUIREMENTS
+==================================================
+
+Healthcare data requires strict security.
+
+
+Implement:
+
+
+Authentication:
+
+- Secure session handling
+- Protected routes
+
+
+Database:
+
+- Supabase Row Level Security
+- Patient can only access their own data
+
+
+Backend:
+
+- Input validation
+- Error handling
+- Secure API communication
+
+
+Never expose:
+
+- Private keys
+- User credentials
+- Sensitive information
+
+
+==================================================
+ENGINEERING REQUIREMENTS
+==================================================
+
+Before coding:
+
+
+First analyze the existing repository.
+
+
+Create:
+
+
+1. Architecture plan
+
+2. Folder structure
+
+3. Database schema
+
+4. Authentication flow
+
+5. Component structure
+
+
+Then implement.
+
+
+Follow:
+
+- Clean code principles
+- SOLID principles
+- Reusable components
+- Proper naming conventions
+- Maintainable architecture
+
+
+==================================================
+TESTING REQUIREMENTS
+==================================================
+
+Test:
+
+
+Authentication:
+
+✓ Signup works
+
+✓ Login works
+
+✓ Google authentication works
+
+✓ Logout works
+
+
+Profile:
+
+✓ User onboarding works
+
+✓ Data saves correctly
+
+✓ Dashboard loads correctly
+
+
+Security:
+
+✓ Unauthorized users cannot access patient data
+
+
+UI:
+
+✓ Responsive design
+
+✓ Mobile compatibility
+
+✓ No broken states
+
+
+==================================================
+PHASE 1 FINAL SUCCESS CRITERIA
+==================================================
+
+At the end of Phase 1, AVERIS should have:
+
+
+✓ Premium healthcare landing page
+
+✓ Patient signup/login
+
+✓ Google OAuth authentication
+
+✓ Secure Supabase backend
+
+✓ Patient onboarding workflow
+
+✓ Patient profile management
+
+✓ Healthcare dashboard foundation
+
+✓ Production-ready architecture
+
+
+The final output should feel like:
+
+"The first production release of a healthcare SaaS startup called AVERIS."
+
+It should not feel like:
+
+"A student project with authentication added."
