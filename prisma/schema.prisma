@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DOCTOR
+  PATIENT
+  ADMIN
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ConditionStatus {
+  ACTIVE
+  MANAGED
+  RESOLVED
+}
+
+enum MedicationStatus {
+  ACTIVE
+  DISCONTINUED
+}
+
+enum TriageStatus {
+  WAITING
+  IN_TREATMENT
+  DISCHARGED
+}
+
+enum NoteStatus {
+  DRAFT
+  FINALIZED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  title        String? // e.g. "Attending Physician, Internal Medicine"
+  createdAt    DateTime @default(now())
+
+  patientProfile Patient?     @relation("PatientUser")
+  notes          ClinicalNote[]
+  auditLogs      AuditLog[]
+}
+
+model Patient {
+  id          String    @id @default(cuid())
+  mrn         String    @unique // medical record number
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime
+  sex         String
+  bloodType   String?
+  phone       String?
+  heightCm    Float?
+  weightKg    Float?
+  smoker      Boolean   @default(false)
+  // Patient-onboarding fields (Phase 2)
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  surgeries             String? // previous surgeries, free text
+  profileCompleted      Boolean @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId String? @unique
+  user   User?   @relation("PatientUser", fields: [userId], references: [id])
+
+  conditions      Condition[]
+  allergies       Allergy[]
+  medications     Medication[]
+  timelineEvents  TimelineEvent[]
+  labReports      LabReport[]
+  documents       Document[]
+  riskAssessments RiskAssessment[]
+  triageCases     TriageCase[]
+  notes           ClinicalNote[]
+}
+
+model Condition {
+  id          String          @id @default(cuid())
+  patientId   String
+  patient     Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name        String
+  icd10       String?
+  status      ConditionStatus @default(ACTIVE)
+  diagnosedAt DateTime
+  notes       String?
+}
+
+model Allergy {
+  id        String   @id @default(cuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  substance String
+  reaction  String?
+  severity  Severity @default(MEDIUM)
+}
+
+model Medication {
+  id           String           @id @default(cuid())
+  patientId    String
+  patient      Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name         String
+  genericName  String? // normalized for interaction checking
+  dose         String
+  frequency    String
+  route        String           @default("oral")
+  status       MedicationStatus @default(ACTIVE)
+  startedAt    DateTime
+  stoppedAt    DateTime?
+  prescribedBy String?
+}
+
+model TimelineEvent {
+  id         String   @id @default(cuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  occurredAt DateTime
+  category   String // diagnosis | medication | procedure | lab | admission | note
+  title      String
+  detail     String?
+  severity   Severity @default(LOW)
+
+  @@index([patientId, occurredAt])
+}
+
+model LabReport {
+  id          String     @id @default(cuid())
+  patientId   String
+  patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  title       String
+  category    String // hematology | chemistry | endocrine | lipid | cardiac
+  collectedAt DateTime
+  reviewedBy  String?
+  summary     String? // AI-generated plain-language summary
+  values      LabValue[]
+
+  @@index([patientId, collectedAt])
+}
+
+model LabValue {
+  id        String    @id @default(cuid())
+  reportId  String
+  report    LabReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  analyte   String // e.g. "HbA1c"
+  value     Float
+  unit      String
+  refLow    Float?
+  refHigh   Float?
+  flag      String? // H | L | HH | LL | null
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  filename      String
+  kind          String // lab_report | prescription | discharge_summary | referral | other
+  rawText       String // extracted/pasted text ("" for binary uploads pending OCR)
+  extraction    Json? // structured extraction result
+  extractedWith String? // "claude-opus-5" | "deterministic"
+  // File storage + extraction lifecycle (Phase 2 patient uploads)
+  fileType         String? // MIME type of the stored file
+  fileSize         Int? // bytes
+  storagePath      String? // server-side path, never exposed directly
+  confidence       Float? // 0–1 extraction confidence
+  extractionStatus String  @default("EXTRACTED") // PROCESSING | EXTRACTED | CONFIRMED | UNAVAILABLE | FAILED
+  uploadedAt    DateTime @default(now())
+}
+
+model RiskAssessment {
+  id         String   @id @default(cuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  domain     String // cardiovascular | metabolic | renal | readmission
+  score      Int // 0-100
+  band       Severity
+  factors    Json // [{label, weightPct, evidence}]
+  narrative  String? // clinician-facing explanation
+  engine     String // "rules-v1" | model id
+  createdAt  DateTime @default(now())
+
+  @@index([patientId, domain])
+}
+
+model TriageCase {
+  id               String       @id @default(cuid())
+  patientId        String
+  patient          Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  arrivedAt        DateTime     @default(now())
+  chiefComplaint   String
+  symptoms         Json // string[]
+  vitals           Json // {hr, sbp, dbp, rr, spo2, tempC, gcs?}
+  acuity           Int // 1 (resuscitation) .. 5 (non-urgent)
+  priority         Severity
+  score            Int // 0-100 severity score
+  rationale        Json // [{factor, points, why}]
+  status           TriageStatus @default(WAITING)
+  assignedTo       String?
+
+  @@index([status, priority])
+}
+
+model ClinicalNote {
+  id         String     @id @default(cuid())
+  patientId  String
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User       @relation(fields: [authorId], references: [id])
+  kind       String // soap | consult | discharge | followup
+  rawInput   String // dictated / typed shorthand from the clinician
+  subjective String?
+  objective  String?
+  assessment String?
+  plan       String?
+  summary    String? // patient-friendly summary
+  followUp   String?
+  status     NoteStatus @default(DRAFT)
+  engine     String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model GuidelineChunk {
+  id       String @id @default(cuid())
+  source   String // e.g. "ADA Standards of Care 2025"
+  section  String
+  content  String
+  keywords String // space-separated lowercase index terms
+
+  @@index([source])
+}
+
+model DrugInteraction {
+  id        String   @id @default(cuid())
+  drugA     String // generic, lowercase
+  drugB     String
+  severity  Severity
+  mechanism String
+  advice    String
+
+  @@unique([drugA, drugB])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // e.g. "patient.view", "note.finalize", "ai.extract"
+  resource  String? // e.g. "patient:cml123"
+  ip        String?
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
