@@ -69,15 +69,39 @@ Architecture, schema rationale and the auth flow are documented in
 
 ## Getting started
 
-### 1. Create a Supabase project
+### 1. Apply the schema
 
-Create a project at [supabase.com](https://supabase.com), then apply the schema — either by
-pasting `supabase/migrations/20260802165525_averis_core_schema.sql` into the SQL editor, or:
+Create a project at [supabase.com](https://supabase.com), then apply the schema. The simplest
+route needs no credentials beyond dashboard access — open the **SQL Editor** and paste the
+contents of [`supabase/apply-all.sql`](./supabase/apply-all.sql), which concatenates every
+migration in order.
+
+It creates 6 tables, 24 RLS policies, 7 helper functions in the non-exposed `private` schema,
+and the private `medical-documents` storage bucket.
+
+Alternatively, with the CLI:
 
 ```bash
 npx supabase link --project-ref <your-project-ref>
-npx supabase db push
+npx supabase db push        # prompts for the database password
 ```
+
+Regenerating `apply-all.sql` after adding a migration:
+
+```bash
+for m in supabase/migrations/*.sql; do echo "-- $(basename "$m")"; cat "$m"; echo; done \
+  > supabase/apply-all.sql
+```
+
+### 1b. Confirm it worked
+
+```bash
+./scripts/verify-remote.sh
+```
+
+Uses only the publishable key. Every table should report **"exists, anon denied"** — a `401`
+proves the table is there *and* that anonymous callers cannot read it. A `200` would mean RLS
+or grants are wrong, and `404` means the schema hasn't been applied.
 
 ### 2. Configure environment
 
@@ -90,15 +114,25 @@ Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from
 
 ### 3. Enable Google OAuth (optional)
 
-In the Supabase dashboard: **Authentication → Providers → Google**. Add your Google client ID
-and secret, and register this authorized redirect URI with Google:
+Email/password works without this. Until Google is configured, the "Continue with Google"
+button will fail — the provider reports `google: false` in `/auth/v1/settings`, which
+`scripts/verify-remote.sh` prints on every run.
 
-```
-https://<project-ref>.supabase.co/auth/v1/callback
-```
+1. **Google Cloud Console** → Credentials → OAuth 2.0 Client ID (Web application).
+2. Add this authorized redirect URI:
+   ```
+   https://<project-ref>.supabase.co/auth/v1/callback
+   ```
+3. **Supabase → Authentication → Providers → Google** — paste the client ID and secret.
+4. **Supabase → Authentication → URL Configuration → Redirect URLs** — add
+   `http://localhost:3100/auth/callback` (and your deployed origin).
 
-Then add `http://localhost:3100/auth/callback` to **Authentication → URL Configuration →
-Redirect URLs**.
+### 4. Email confirmation
+
+New projects require email confirmation by default (`mailer_autoconfirm: false`). Sign-up
+therefore returns *"check your inbox"* rather than an immediate session — the app handles this
+explicitly. To test the full flow without a mail round-trip, turn off **Confirm email** under
+**Authentication → Providers → Email**.
 
 ### 4. Run
 
