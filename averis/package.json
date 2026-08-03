@@ -12,7 +12,7 @@
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
     "types:gen": "supabase gen types typescript --local > lib/supabase/database.types.ts",
-    "test": "tsx --test lib/services/documents/__tests__/*.test.ts"
+    "test": "tsx --test lib/services/**/__tests__/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",
