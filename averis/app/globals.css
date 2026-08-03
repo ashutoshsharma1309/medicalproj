@@ -1,0 +1,305 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   AVERIS design tokens
+
+   Direction: "health identity, issued."
+   The product's core artifact is a patient's health identity, so the visual
+   language borrows from official identity documents and public-health
+   institutions: precise hierarchy, hairline rules, monospaced identifiers,
+   a restrained petrol/slate palette, and a single brass accent used only
+   where something is "issued". No gradients, no glassmorphism, no neon.
+   ========================================================================== */
+
+@theme {
+  /* Surfaces */
+  --color-paper: #f2f5f5;
+  --color-surface: #ffffff;
+  --color-sunken: #e8eded;
+
+  /* Ink */
+  --color-ink: #0d2028;
+  --color-ink-soft: #3c525a;
+  --color-muted: #5c7178;
+  --color-faint: #8ba0a6;
+
+  /* Rules */
+  --color-rule: #dae2e3;
+  --color-rule-strong: #c0cdcf;
+
+  /* Brand — deep petrol */
+  --color-brand: #10525e;
+  --color-brand-deep: #0a3a43;
+  --color-brand-mid: #37767f;
+  --color-wash: #e6eff0;
+
+  /* Deep institutional field (headers, auth panel, footer) */
+  --color-field: #0b2229;
+  --color-field-rule: #1d3a42;
+  --color-field-text: #9fb6ba;
+  --color-field-bright: #eef4f4;
+
+  /* Brass — reserved for "issued" moments: identity card foil, seals */
+  --color-brass: #9c7b3f;
+  --color-brass-soft: #c8a76a;
+
+  /* Semantic */
+  --color-critical: #a63328;
+  --color-critical-wash: #fbeeec;
+  --color-critical-rule: #eecdc8;
+  --color-positive: #1f6b4a;
+  --color-positive-wash: #e9f4ef;
+  --color-positive-rule: #bfe0d0;
+  --color-notice: #8a5a16;
+  --color-notice-wash: #fbf3e6;
+  --color-notice-rule: #ecd9b4;
+
+  /* Type */
+  --font-display: var(--font-libre-franklin), "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-source-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* --- Accessibility ------------------------------------------------------ */
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-field);
+  color: var(--color-field-bright);
+  padding: 10px 18px;
+  border-radius: 0 0 6px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* --- Primitives --------------------------------------------------------- */
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 7px;
+  font-size: 14.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 130ms ease, border-color 130ms ease, color 130ms ease;
+  text-align: center;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary { background: var(--color-brand); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--color-brand-deep); }
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-rule-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.btn-onfield {
+  background: var(--color-field-bright);
+  color: var(--color-field);
+}
+.btn-onfield:hover:not(:disabled) { background: #fff; }
+
+.btn-ghost { background: transparent; color: var(--color-muted); }
+.btn-ghost:hover:not(:disabled) { color: var(--color-ink); background: var(--color-wash); }
+
+.field-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 7px;
+  padding: 10px 13px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--color-ink);
+  transition: border-color 130ms ease, box-shadow 130ms ease;
+}
+.field-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(16, 82, 94, 0.13);
+}
+.field-input::placeholder { color: var(--color-faint); }
+.field-input[aria-invalid="true"] { border-color: var(--color-critical); }
+
+textarea.field-input { resize: vertical; min-height: 88px; line-height: 1.6; }
+
+.field-hint { margin-top: 5px; font-size: 12.5px; color: var(--color-muted); }
+.field-error { margin-top: 5px; font-size: 12.5px; color: var(--color-critical); font-weight: 500; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--color-rule-strong);
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+}
+.chip-brand { border-color: var(--color-brand); background: var(--color-wash); color: var(--color-brand-deep); }
+.chip-critical { border-color: var(--color-critical-rule); background: var(--color-critical-wash); color: var(--color-critical); }
+.chip-positive { border-color: var(--color-positive-rule); background: var(--color-positive-wash); color: var(--color-positive); }
+.chip-notice { border-color: var(--color-notice-rule); background: var(--color-notice-wash); color: var(--color-notice); }
+
+/* --- Signature: the AVERIS health identity card -------------------------
+   A guilloché-style security pattern, as found on issued identity documents,
+   built from layered low-opacity gradients. This is the one place brass
+   appears — the "issued" seal.
+   ------------------------------------------------------------------------ */
+
+.identity-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(200, 167, 106, 0.16), transparent 42%),
+    linear-gradient(158deg, #123a44 0%, #0b2229 58%, #0a1e24 100%);
+  border: 1px solid #1d3a42;
+  box-shadow:
+    0 1px 0 rgba(200, 167, 106, 0.28) inset,
+    0 12px 30px -12px rgba(10, 34, 41, 0.5);
+  color: var(--color-field-bright);
+}
+
+/* Guilloché engraving */
+.identity-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-radial-gradient(circle at 18% 118%, transparent 0 13px, rgba(159, 182, 186, 0.085) 13px 14px),
+    repeating-radial-gradient(circle at 88% -18%, transparent 0 17px, rgba(200, 167, 106, 0.07) 17px 18px);
+  pointer-events: none;
+}
+
+.identity-card > * { position: relative; }
+
+.identity-foil {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-brass-soft), transparent);
+  opacity: 0.65;
+}
+
+/* --- Step rail (onboarding) --------------------------------------------- */
+
+.step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--color-rule-strong);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+.step-dot[data-state="active"] {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: #fff;
+}
+.step-dot[data-state="done"] {
+  background: var(--color-wash);
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+/* --- Landing rhythm ------------------------------------------------------ */
+
+.section {
+  padding-block: 84px;
+}
+@media (max-width: 768px) {
+  .section { padding-block: 56px; }
+}
+
+.rule-top { border-top: 1px solid var(--color-rule); }
