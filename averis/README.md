@@ -6,7 +6,8 @@ AVERIS is an AI-powered personalized healthcare intelligence platform. It helps 
 organize their health information and create a personalized healthcare profile — a single,
 accurate health identity they own and control.
 
-This repository contains **Phase 1: the Patient Identity + Health Profile platform**.
+This repository contains **Phase 1 (Patient Identity + Health Profile)** and
+**Phase 2 (Medical Document Intelligence)**.
 
 ---
 
@@ -26,9 +27,33 @@ onboarding, and reach a private healthcare dashboard.
 | Health dashboard foundation | ✅ |
 | Container + GCP Cloud Run deployment | ✅ |
 
-**Deliberately not built yet:** medical document analysis, health timeline, and risk insights.
-The dashboard reserves labelled space for each, and the Grok client is scaffolded — but AVERIS
-does not simulate AI output it cannot actually produce.
+## What Phase 2 delivers
+
+The Medical Records Center: a patient uploads a document, AVERIS reads it, and the patient
+verifies what it found before anything touches their health profile.
+
+```
+Upload  →  Text extraction  →  Medical entity extraction  →  Review  →  Health profile
+(PDF/JPG/PNG)  (PDF layer / OCR)      (Grok, JSON contract)   (patient)   (additive merge)
+```
+
+| Capability | Status |
+|---|---|
+| Drag-and-drop upload with document categories | ✅ |
+| Private Supabase Storage, per-patient folders | ✅ |
+| PDF text extraction; OCR for images and scanned PDFs | ✅ |
+| Structured medical extraction via Grok, JSON-contract validated | ✅ |
+| Per-field confidence scoring with low-confidence flagging | ✅ |
+| Patient verification workflow (confirm / edit / reject) | ✅ |
+| Additive health-profile integration on confirmation | ✅ |
+| Document viewer with original + AVERIS summary | ✅ |
+
+**The rule that governs the whole phase:** an extraction never modifies a health profile.
+Items reach `patient_medical_records` and the profile only after an explicit `CONFIRM`
+decision — asserted directly in the test suite.
+
+**Still deliberately not built:** health timeline and predictive insights. The dashboard
+reserves labelled space for both rather than simulating them.
 
 ## Tech stack
 
@@ -110,15 +135,34 @@ Health data is protected in the database, not just in the interface.
 
 ### Verifying the security model
 
-The RLS policies ship with an executable test suite that proves cross-patient isolation:
+Two executable suites, both runnable offline:
 
 ```bash
-./supabase/tests/run.sh
+npm test                     # 32 pipeline tests (Grok stubbed, no network)
+./supabase/tests/run.sh      # 34 RLS assertions against real Postgres
 ```
 
-It applies the **unmodified production migration** to a throwaway database and asserts that a
-patient cannot read or write another patient's profile or health information, that ownership
-cannot be reassigned, and that anonymous callers are denied outright.
+`run.sh` applies the **unmodified production migrations** to a throwaway database and asserts
+that a patient cannot read or write another patient's profile, health information, documents,
+extractions or confirmed records; that ownership cannot be reassigned; and that anonymous
+callers are denied outright.
+
+`npm test` covers the pipeline logic that decides what reaches a health profile: the extraction
+contract, JSON recovery from imperfect model output, confidence scoring and low-confidence
+flagging, the no-diagnosis guardrail, upload validation including magic-byte checks, and the
+reconciliation rule that **nothing is written without an explicit confirmation**.
+
+## Phase 2 configuration
+
+| Variable | Purpose |
+|---|---|
+| `GROK_API_KEY` | Required for extraction. Server-only. |
+| `GROK_MODEL` | Defaults to `grok-4`. |
+| `OCR_PROVIDER` | `tesseract` (default, no external dependency) or `google-vision`. |
+| `GOOGLE_CLOUD_VISION_API_KEY` | Required only when `OCR_PROVIDER=google-vision`. |
+
+Apply the Phase 2 migrations to your Supabase project (`npx supabase db push`). They create the
+three tables plus the private `medical-documents` storage bucket and its policies.
 
 ---
 

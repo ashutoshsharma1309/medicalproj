@@ -174,10 +174,56 @@ Every write
 - Server Components by default; `"use client"` only where state or events are
   required (forms, wizard).
 
-## 7. Phase 2 seams (built, not filled)
+## 7. Phase 2 — Medical Document Intelligence
 
-- `lib/ai/grok.ts` — typed xAI client, no user-facing feature attached.
-- Dashboard renders `Medical Records`, `Health Timeline`, `Health Insights` as
-  honest, labelled placeholders. **No simulated AI output** — the structure is
-  correct so document analysis, the digital twin, and risk prediction slot in
-  without redesign.
+### Layering
+
+```
+Server Action (app/(app)/records/actions.ts)   ← authorization, validation
+        ↓
+Processing Service (processing-service.ts)      ← sequence + status machine
+        ↓
+  storage-service   → fetch bytes from private bucket
+  text-extraction   → PDF text layer, or OCR (pluggable provider)
+  grok-service      → structured extraction, JSON contract enforced
+        ↓
+Database (RLS-scoped Supabase client)
+```
+
+Each service owns one capability and none reach past their neighbour. The
+orchestrator is the only place that knows the order of operations or writes
+status transitions:
+
+```
+PENDING → PROCESSING → PENDING_REVIEW → COMPLETED
+                    ↘ FAILED (error_message explains, retry offered)
+```
+
+### Testability as a design constraint
+
+Two decisions exist purely so the pipeline can be verified without a network:
+
+- **`grok-service` takes its completion function as a parameter.** The real
+  (server-only) client is imported lazily, so tests inject a stub and the whole
+  extraction path runs offline and deterministically.
+- **Upload rules live in `storage-validation.ts`**, separate from the
+  `server-only` I/O in `storage-service.ts`, so they are directly unit-testable.
+
+### The verification invariant
+
+An extraction never modifies a health profile. `reconciliation.ts` is a pure
+function from *(extracted items, patient decisions, existing profile)* to
+*(records to write, additive profile changes)*. Absence of a decision is
+treated as rejection — silence is not consent — and the merge is additive, so
+confirming a document can never delete something the patient entered.
+
+### Guardrail on patient-facing prose
+
+`enforceNoDiagnosis()` scans the model's summary for diagnostic or prescriptive
+phrasing and replaces it with a referral to the patient's clinician. The system
+prompt asks for observational language; this enforces it regardless.
+
+### Still deliberately unbuilt
+
+Health timeline and predictive insights. The dashboard reserves labelled space
+for both rather than simulating them.
