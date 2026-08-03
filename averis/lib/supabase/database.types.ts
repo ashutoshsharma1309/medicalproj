@@ -41,6 +41,26 @@ export type UploadStatus =
 
 export type MedicalRecordType = "CONDITION" | "MEDICATION" | "ALLERGY" | "LAB_RESULT";
 
+/* --------------------------------------------- Phase 3: the digital twin */
+
+export type HealthEventType =
+  | "DIAGNOSIS"
+  | "MEDICATION_STARTED"
+  | "MEDICATION_CHANGED"
+  | "MEDICATION_STOPPED"
+  | "LAB_RESULT"
+  | "DOCUMENT_ADDED"
+  | "ALLERGY_RECORDED"
+  | "OTHER";
+
+export type ConditionStatus = "ACTIVE" | "RESOLVED" | "UNCONFIRMED";
+
+export type ConditionSeverity = "UNKNOWN" | "MILD" | "MODERATE" | "SIGNIFICANT";
+
+export type InsightType = "TREND" | "PATTERN" | "COMPLETENESS" | "REMINDER";
+
+export type ImportanceLevel = "LOW" | "MEDIUM" | "HIGH";
+
 export type Database = {
   public: {
     Tables: {
@@ -252,6 +272,128 @@ export type Database = {
         };
         Relationships: [];
       };
+
+      patient_health_timeline: {
+        Row: {
+          id: string;
+          patient_id: string;
+          event_type: HealthEventType;
+          event_title: string;
+          description: string | null;
+          event_date: string;
+          source_document_id: string | null;
+          derived: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          event_type: HealthEventType;
+          event_title: string;
+          description?: string | null;
+          event_date: string;
+          source_document_id?: string | null;
+          derived?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          event_title?: string;
+          description?: string | null;
+          event_date?: string;
+        };
+        Relationships: [];
+      };
+
+      health_conditions: {
+        Row: {
+          id: string;
+          patient_id: string;
+          condition_name: string;
+          first_detected: string | null;
+          severity: ConditionSeverity;
+          current_status: ConditionStatus;
+          confidence_score: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          condition_name: string;
+          first_detected?: string | null;
+          severity?: ConditionSeverity;
+          current_status?: ConditionStatus;
+          confidence_score?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          first_detected?: string | null;
+          severity?: ConditionSeverity;
+          current_status?: ConditionStatus;
+          confidence_score?: number | null;
+        };
+        Relationships: [];
+      };
+
+      medication_history: {
+        Row: {
+          id: string;
+          patient_id: string;
+          medicine_name: string;
+          dosage: string | null;
+          frequency: string | null;
+          start_date: string | null;
+          end_date: string | null;
+          source_document_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          medicine_name: string;
+          dosage?: string | null;
+          frequency?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          source_document_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          dosage?: string | null;
+          frequency?: string | null;
+          end_date?: string | null;
+        };
+        Relationships: [];
+      };
+
+      health_insights: {
+        Row: {
+          id: string;
+          patient_id: string;
+          insight_type: InsightType;
+          insight_text: string;
+          importance_level: ImportanceLevel;
+          evidence: unknown;
+          confidence_score: number | null;
+          generated_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          insight_type: InsightType;
+          insight_text: string;
+          importance_level?: ImportanceLevel;
+          evidence?: unknown;
+          confidence_score?: number | null;
+          generated_at?: string;
+        };
+        Update: {
+          insight_text?: string;
+          importance_level?: ImportanceLevel;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
     Functions: Record<never, never>;
@@ -262,6 +404,11 @@ export type Database = {
       document_type: DocumentType;
       upload_status: UploadStatus;
       medical_record_type: MedicalRecordType;
+      health_event_type: HealthEventType;
+      condition_status: ConditionStatus;
+      condition_severity: ConditionSeverity;
+      insight_type: InsightType;
+      importance_level: ImportanceLevel;
     };
     CompositeTypes: Record<never, never>;
   };
