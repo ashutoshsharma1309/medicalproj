@@ -10,6 +10,7 @@ import {
   validateUpload,
 } from "@/lib/services/documents/storage-service";
 import { processDocument } from "@/lib/services/documents/processing-service";
+import { refreshDigitalTwin } from "@/lib/services/twin/digital-twin-service";
 import { buildReviewItems } from "@/lib/services/documents/review";
 import {
   buildReconciliationPlan,
@@ -238,8 +239,19 @@ export async function confirmExtractionAction(
     .update({ upload_status: "COMPLETED" })
     .eq("id", documentId);
 
+  // Document → extracted data → digital twin. Confirming is the only event
+  // that changes the patient's record, so it is the only thing that needs to
+  // refresh the twin. A failure here must not fail the confirmation itself —
+  // the twin is derived and can always be rebuilt.
+  try {
+    await refreshDigitalTwin(supabase, account.patientProfileId);
+  } catch {
+    /* twin refresh is best-effort; /twin rebuilds on demand */
+  }
+
   revalidatePath("/records");
   revalidatePath("/dashboard");
+  revalidatePath("/twin");
   revalidatePath(`/records/${documentId}`);
 
   return {
