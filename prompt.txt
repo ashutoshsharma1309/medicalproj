@@ -1,551 +1,1939 @@
 
-You are a Principal Software Engineer, SaaS Product Architect, Cloud Architect, UI/UX Engineer, and Healthcare Technology Product Builder with 10+ years of experience building scalable production-grade platforms.
 
-You are responsible for building Phase 1 of a healthcare SaaS product called:
+You are a Principal Machine Learning Engineer, Healthcare AI Research Scientist, MLOps Engineer, and Senior Software Architect with 10+ years of experience building production-grade AI healthcare systems.
+
+You are continuing development of:
 
 # AVERIS
 
-==================================================
-PRODUCT CONTEXT
-==================================================
-
-AVERIS is not a college-level CRUD application.
-
-AVERIS is being built as a real healthcare technology product that should be:
-
-- Deployable on the internet
-- Presentable at hackathons
-- Strong enough for an MNC-level portfolio
-- Architected for future SaaS monetization
-- Scalable into a healthcare ecosystem
-
-Think like you are building the first version of a healthcare startup.
-
-Do not optimize only for completing features.
-
-Optimize for:
-
-- Product quality
-- User trust
-- Scalability
-- Security
-- Excellent UX
-- Clean engineering practices
-
-
-==================================================
-PRODUCT VISION
-==================================================
-
 AVERIS is an AI-powered personalized healthcare intelligence platform.
 
-The long-term goal:
+Completed phases:
 
-Help patients create a complete digital health identity where their medical information can be organized, analyzed, and transformed into meaningful healthcare insights.
+PHASE 1:
+- Patient authentication
+- Google OAuth
+- Supabase backend
+- Patient profile system
 
-Future versions of AVERIS will include:
+PHASE 2:
+- Medical document intelligence
+- OCR pipeline
+- Medical entity extraction
+- Structured medical records
 
-- AI medical document analysis
-- Patient digital twin
-- Disease risk prediction
-- Explainable AI
-- Medical knowledge assistant
-- Health trend forecasting
-- Personalized healthcare recommendations
-
-
-However, this phase focuses only on building the strongest foundation:
-
-PATIENT IDENTITY + HEALTH PROFILE PLATFORM
-
-
-==================================================
-PHASE 1 OBJECTIVE
-==================================================
-
-Build:
-
-AVERIS Patient Portal Foundation
+PHASE 3:
+- Patient Digital Twin
+- Medical timeline
+- Health summary
+- Health insights
 
 
-A patient should be able to:
+Your responsibility:
 
-1. Discover AVERIS
-2. Create an account
-3. Login securely
-4. Complete health onboarding
-5. Create their personal health profile
-6. Access their private healthcare dashboard
+Implement:
+
+# PHASE 4: AVERIS MACHINE LEARNING HEALTH RISK INTELLIGENCE ENGINE
 
 
 ==================================================
-PRODUCT NAME REQUIREMENTS
+PHASE OBJECTIVE
 ==================================================
 
-Use AVERIS everywhere.
+Transform patient healthcare data into predictive intelligence using machine learning.
 
-The product name must appear consistently in:
+The goal:
 
-- Website navbar
-- Landing page
-- Authentication screens
-- Dashboard
-- Browser title
-- Metadata
-- Documentation
-- Application branding
+Use ML models to identify potential health risks based on patient information.
 
+AVERIS should move from:
 
-Never use temporary names like:
+"Understanding past health information"
 
-- Healthcare App
-- Medical Platform
-- AI Health App
-- Demo Application
+to:
 
-
-The identity should always be:
-
-AVERIS
-
-
-==================================================
-TECH STACK
-==================================================
-
-Frontend:
-
-Use:
-
-- Next.js
-- TypeScript
-- Tailwind CSS
-
-
-Requirements:
-
-- Modern component architecture
-- Reusable UI components
-- Responsive design
-- Production-level folder structure
-
-
-Backend:
-
-Use:
-
-- Supabase
-
-
-Supabase will handle:
-
-- Authentication
-- PostgreSQL database
-- User management
-- Database operations
-
-
-Cloud:
-
-Use:
-
-Google Cloud Platform (GCP)
-
-
-AI Integration:
-
-Use:
-
-Grok API
-
-
-Environment variables:
-
-Create:
-
-.env.example
-
-
-Include placeholders:
-
-
-# Supabase
-
-SUPABASE_URL=
-
-SUPABASE_ANON_KEY=
-
-SUPABASE_SERVICE_ROLE_KEY=
-
-
-# Google Authentication / OAuth
-
-GOOGLE_CLIENT_ID=
-
-GOOGLE_CLIENT_SECRET=
-
-
-# GCP
-
-GCP_PROJECT_ID=
-
-GCP_REGION=
-
-
-# Grok AI
-
-GROK_API_KEY=
+"Predicting possible future health risks."
 
 
 IMPORTANT:
 
-Never hardcode credentials.
+This is NOT a diagnosis system.
 
-Never expose API keys in frontend code.
+It is a:
+
+Health risk assessment and awareness system.
+
+Every prediction must include:
+
+- Risk probability
+- Confidence
+- Explanation
+- Disclaimer
 
 
 ==================================================
-UI/UX DESIGN REQUIREMENTS
+ML MODULES TO BUILD
 ==================================================
 
-This is one of the most important requirements.
 
-AVERIS should NOT look like a generic AI-generated website.
+Implement two ML prediction systems initially:
+
+
+==================================================
+MODEL 1: DIABETES RISK PREDICTION
+==================================================
+
+
+Purpose:
+
+Predict diabetes risk based on patient health parameters.
+
+
+Input features:
+
+
+- Age
+- Gender
+- BMI
+- Glucose level
+- Blood pressure
+- Insulin level
+- Family history
+- Existing conditions
+
+
+Output:
+
+
+Example:
+
+
+Diabetes Risk:
+
+78%
+
+
+Risk Category:
+
+High
+
+
+Important Factors:
+
+- Elevated glucose
+- BMI
+- Blood pressure
+
+
+
+==================================================
+MODEL 2: CARDIOVASCULAR RISK PREDICTION
+==================================================
+
+
+Purpose:
+
+Estimate cardiovascular risk.
+
+
+Input:
+
+
+- Age
+- Blood pressure
+- Cholesterol
+- Heart rate
+- BMI
+- Smoking history
+- Diabetes history
+
+
+Output:
+
+
+Example:
+
+
+Cardiovascular Risk:
+
+64%
+
+
+Risk Category:
+
+Moderate
+
+
+
+==================================================
+DATASET REQUIREMENTS
+==================================================
+
+
+Use lightweight public datasets.
+
+
+Do NOT use huge datasets.
+
+The system should run efficiently.
+
+
+Recommended:
+
+
+Diabetes:
+
+- Pima Indians Diabetes Dataset
+
+
+Heart Disease:
+
+- Cleveland Heart Disease Dataset
+
+
+
+Requirements:
+
+
+Perform:
+
+
+- Data cleaning
+- Feature selection
+- Data preprocessing
+- Model training
+- Model evaluation
+
+
+
+==================================================
+MODEL DEVELOPMENT PIPELINE
+==================================================
+
+
+Create:
+
+
+ml/
+
+
+    datasets/
+
+
+    preprocessing/
+
+
+    models/
+
+
+    evaluation/
+
+
+    prediction/
+
+
+Structure:
+
+
+
+Dataset
+
+↓
+
+Cleaning
+
+↓
+
+Feature Engineering
+
+↓
+
+Training
+
+↓
+
+Evaluation
+
+↓
+
+Model Export
+
+↓
+
+Prediction API
+
+
+
+==================================================
+MODELS TO IMPLEMENT
+==================================================
+
+
+For comparison:
+
+
+Baseline:
+
+
+- Logistic Regression
+
+
+
+Advanced:
+
+
+- Random Forest
+
+
+- XGBoost
+
+
+
+Compare:
+
+
+Metrics:
+
+
+- Accuracy
+
+- Precision
+
+- Recall
+
+- F1 Score
+
+- ROC-AUC
+
+
+
+Store model performance results.
+
+
+
+==================================================
+MODEL STORAGE
+==================================================
+
+
+Save trained models:
+
+
+Format:
+
+
+.pkl
+
+
+or
+
+
+.joblib
+
+
+
+Example:
+
+
+models/
+
+
+ diabetes_model.pkl
+
+
+ heart_model.pkl
+
+
+
+==================================================
+BACKEND ML SERVICE
+==================================================
+
+
+Create:
+
+
+ml_service
+
+
+Responsibilities:
+
+
+- Load trained models
+
+- Receive patient data
+
+- Perform preprocessing
+
+- Generate prediction
+
+- Return results
+
+
+
+API example:
+
+
+POST:
+
+/api/risk/diabetes
+
+
+
+Input:
+
+
+{
+
+"age":45,
+
+"glucose":160,
+
+"bmi":31
+
+}
+
+
+
+Output:
+
+
+{
+
+"risk_score":0.78,
+
+"category":"High"
+
+}
+
+
+
+==================================================
+EXPLAINABLE AI IMPLEMENTATION
+==================================================
+
+
+This is mandatory.
+
+
+Implement:
+
+
+SHAP explainability.
+
+
+
+Every prediction should answer:
+
+
+"Why did AVERIS predict this risk?"
+
+
+
+Example:
+
+
+Prediction:
+
+
+Diabetes Risk:
+
+78%
+
+
+
+Contributing factors:
+
+
+Glucose:
+
++35%
+
+
+BMI:
+
++22%
+
+
+Age:
+
++15%
+
+
+
+Protective factors:
+
+
+Exercise:
+
+-10%
+
+
+
+==================================================
+AVERIS HEALTH RISK DASHBOARD
+==================================================
+
+
+Add a new dashboard section:
+
+
+AVERIS Risk Intelligence
+
+
+
+Sections:
+
+
+
+1. Risk Overview
+
+
+
+Cards:
+
+
+Diabetes Risk
+
+Heart Risk
+
+
+
+2. Explanation
+
+
+
+Show:
+
+
+Risk factors
+
+Feature importance
+
+SHAP visualization
+
+
+
+3. Health Recommendations
+
+
+
+Generate general awareness:
+
+
+Examples:
+
+
+"Your glucose levels have increased recently."
+
+"Consider discussing regular monitoring with your healthcare provider."
+
+
+
+Do not provide medical prescriptions.
+
+
+
+==================================================
+DIGITAL TWIN INTEGRATION
+==================================================
+
+
+Connect ML models with the Patient Digital Twin.
+
+
+Workflow:
+
+
+Patient Data
+
+↓
+
+Digital Twin
+
+↓
+
+ML Feature Extraction
+
+↓
+
+Risk Prediction
+
+↓
+
+Health Insights
+
+
+
+The prediction should automatically update:
+
+
+Health Intelligence section.
+
+
+
+==================================================
+AI + ML COMBINATION
+==================================================
+
+
+Use Grok API only for:
+
+
+- Explaining ML predictions
+- Generating human-friendly summaries
+
+
+Do NOT use LLM as the prediction model.
+
+
+Architecture:
+
+
+Machine Learning Model
+
+↓
+
+Prediction
+
+
++
+
+Grok AI
+
+↓
+
+Explanation
+
+
+
+==================================================
+MLOPS FOUNDATION
+==================================================
+
+
+Create basic ML lifecycle support.
+
+
+Include:
+
+
+- Model versioning
+
+- Training metadata
+
+- Model evaluation storage
+
+
+Example:
+
+
+Model:
+
+Diabetes Predictor
+
+
+Version:
+
+v1
+
+
+Accuracy:
+
+85%
+
+
+Created:
+
+Date
+
+
+
+==================================================
+DATABASE EXTENSION
+==================================================
+
+
+Create:
+
+
+TABLE:
+
+
+health_predictions
+
+
+Fields:
+
+
+- id
+
+- patient_id
+
+- prediction_type
+
+- risk_score
+
+- risk_category
+
+- model_version
+
+- explanation
+
+- created_at
+
+
+
+TABLE:
+
+
+model_metrics
+
+
+Fields:
+
+
+- id
+
+- model_name
+
+- accuracy
+
+- precision
+
+- recall
+
+- f1_score
+
+- created_at
+
+
+
+==================================================
+UI/UX REQUIREMENTS
+==================================================
+
+
+Maintain AVERIS design language.
+
+
+The interface should feel like:
+
+
+A premium healthcare analytics platform.
+
 
 
 Avoid:
 
-- Purple AI gradients
-- Robot illustrations
-- ChatGPT-style interfaces
-- Futuristic neon designs
-- Excessive glassmorphism
-- Random animations
-- Generic SaaS templates
 
+- AI chatbot design
 
-The design should feel like:
+- Gaming dashboards
 
-- Premium hospital software
-- Modern healthcare institution
-- Enterprise medical platform
+- Excessive charts
 
 
-The feeling should be:
+Use:
 
-Trust.
-Security.
-Professionalism.
-Human healthcare.
 
+- Medical visualization
 
-The user should think:
+- Clean graphs
 
-"My health data is safe with AVERIS."
+- Risk indicators
 
+- Professional layouts
 
-Design principles:
-
-- Clean typography
-- Excellent spacing
-- Calm healthcare colors
-- Strong accessibility
-- Minimal but premium interface
-- Clear information hierarchy
-
-
-==================================================
-LANDING PAGE
-==================================================
-
-Create a premium healthcare landing page.
-
-Brand:
-
-AVERIS
-
-
-Hero section:
-
-Title:
-
-"Your intelligent healthcare journey starts here."
-
-
-Explain:
-
-AVERIS helps patients organize their health information and create a personalized healthcare profile.
-
-
-Sections:
-
-1. Hero
-
-2. How AVERIS works
-
-3. Patient benefits
-
-4. Security and privacy
-
-5. Future AI capabilities
-
-6. Call to action
-
-
-Primary CTA:
-
-"Create Your AVERIS Profile"
-
-
-The landing page should look like a healthcare startup website, not a student project.
-
-
-==================================================
-AUTHENTICATION SYSTEM
-==================================================
-
-Implement secure patient authentication.
-
-
-Authentication provider:
-
-Supabase Authentication
-
-
-Support:
-
-
-1. Email and Password Authentication
-
-
-Features:
-
-- Signup
-- Login
-- Logout
-- Password validation
-- Session persistence
-
-
-2. Google OAuth Authentication
-
-
-Features:
-
-- Login with Google
-- Automatic account creation
-- Secure OAuth flow
-
-
-After successful authentication:
-
-Create user profile entry automatically.
-
-
-==================================================
-USER ROLE ARCHITECTURE
-==================================================
-
-Design the system for future expansion.
-
-
-Roles:
-
-PATIENT
-
-
-Future:
-
-DOCTOR
-
-HOSPITAL_ADMIN
-
-
-Only implement PATIENT now.
-
-
-Database architecture should support future roles.
-
-
-==================================================
-DATABASE DESIGN
-==================================================
-
-Create a production-ready Supabase PostgreSQL schema.
-
-
-Table:
-
-users
-
-
-Fields:
-
-- id
-- auth_user_id
-- email
-- full_name
-- profile_image
-- role
-- created_at
-- updated_at
-
-
---------------------------------
-
-
-Table:
-
-patient_profiles
-
-
-Fields:
-
-- id
-- user_id
-- date_of_birth
-- gender
-- phone_number
-- blood_group
-- emergency_contact
-- created_at
-- updated_at
-
-
---------------------------------
-
-
-Table:
-
-patient_health_information
-
-
-Fields:
-
-- id
-- patient_id
-- allergies
-- existing_conditions
-- current_medications
-- medical_notes
-- created_at
-- updated_at
-
-
-Keep the database normalized and scalable.
-
-
-==================================================
-PATIENT ONBOARDING FLOW
-==================================================
-
-After first login:
-
-Redirect user to AVERIS onboarding.
-
-
-Create a multi-step onboarding experience.
-
-
-STEP 1:
-
-Personal Information
-
-
-Fields:
-
-- Full Name
-- Date of Birth
-- Gender
-- Phone Number
-
-
---------------------------------
-
-
-STEP 2:
-
-Basic Health Information
-
-
-Fields:
-
-- Blood Group
-- Allergies
-- Existing Conditions
-- Current Medications
-
-
---------------------------------
-
-
-STEP 3:
-
-Confirmation
-
-
-Display:
-
-
-"Your AVERIS Health Profile has been successfully created."
-
-
-==================================================
-PATIENT DASHBOARD
-==================================================
-
-Create the first version of:
-
-AVERIS Health Dashboard
-
-
-The dashboard should feel like a real healthcare product.
-
-
-Sections:
-
-
-1. Health Profile
-
-Display:
-
-- Name
-- Age
-- Blood Group
-- Basic health information
-
-
-2. Medical Records
-
-Placeholder for future:
-
-AI medical document analysis
-
-
-3. Health Timeline
-
-Placeholder for future:
-
-Medical history timeline
-
-
-4. Health Insights
-
-Placeholder for future:
-
-ML predictions and AI insights
-
-
-Do not build fake AI features yet.
-
-Create the correct product structure for future integration.
 
 
 ==================================================
 SECURITY REQUIREMENTS
 ==================================================
 
-Healthcare data requires strict security.
+
+Implement:
+
+
+- Patient data isolation
+
+- Secure ML API endpoints
+
+- Validation of incoming health data
+
+
+Never expose:
+
+
+- Model files publicly
+
+- Training data
+
+- Sensitive patient information
+
+
+
+==================================================
+TESTING REQUIREMENTS
+==================================================
+
+
+Test:
+
+
+Machine Learning:
+
+
+✓ Dataset preprocessing
+
+✓ Model loading
+
+✓ Prediction generation
+
+✓ Explanation generation
+
+
+Application:
+
+
+✓ Patient data reaches ML service
+
+✓ Prediction saves correctly
+
+✓ Dashboard displays results
+
+
+Security:
+
+
+✓ Patients only see their own predictions
+
+
+
+==================================================
+PHASE 4 FINAL SUCCESS CRITERIA
+==================================================
+
+
+At the end of Phase 4:
+
+
+AVERIS should have:
+
+
+✓ Real machine learning models
+
+✓ Disease risk prediction
+
+✓ Model evaluation metrics
+
+✓ SHAP explainability
+
+✓ ML-powered dashboard
+
+✓ Digital Twin integration
+
+✓ Production-ready ML pipeline
+
+
+
+The final product should demonstrate:
+
+
+"AVERIS uses machine learning to transform patient health data into explainable predictive healthcare intelligence."
+
+
+Not:
+
+
+"AVERIS asks an AI chatbot about health problems."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You are a Principal AI Engineer, Generative AI Architect, Healthcare NLP Researcher, and Senior SaaS Engineer with 10+ years of experience building production-grade AI healthcare systems.
+
+You are continuing development of:
+
+# AVERIS
+
+AVERIS is an AI-powered personalized healthcare intelligence platform.
+
+Completed phases:
+
+PHASE 1:
+- Patient authentication
+- Google OAuth
+- Supabase architecture
+- Patient profile system
+
+PHASE 2:
+- Medical document intelligence
+- OCR processing
+- Medical entity extraction
+- Structured medical records
+
+PHASE 3:
+- Patient Digital Twin
+- Medical timeline
+- Health summaries
+- Health insights
+
+PHASE 4:
+- ML risk prediction
+- Disease risk models
+- SHAP explainability
+- Risk intelligence dashboard
+
+
+Your responsibility:
+
+Implement:
+
+# PHASE 5: AVERIS MEDICAL KNOWLEDGE INTELLIGENCE ENGINE
+
+
+==================================================
+PHASE OBJECTIVE
+==================================================
+
+Build a healthcare-focused Retrieval Augmented Generation (RAG) system.
+
+The objective:
+
+Allow AVERIS to answer healthcare-related questions using:
+
+1. Patient-specific medical information
+
+2. Medical knowledge sources
+
+3. Structured healthcare data
+
+
+AVERIS should become:
+
+"An intelligent health information layer connected to the patient's complete medical journey."
+
+
+==================================================
+IMPORTANT PRODUCT RULE
+==================================================
+
+Do NOT build:
+
+- Generic medical chatbot
+- Open-ended AI assistant
+- Doctor replacement system
+
+
+AVERIS should NOT diagnose.
+
+AVERIS should:
+
+- Explain information
+- Summarize records
+- Help patients understand their health data
+- Provide evidence-based educational insights
+
+
+Always include:
+
+"This information is for awareness and should not replace professional medical advice."
+
+
+==================================================
+RAG SYSTEM ARCHITECTURE
+==================================================
+
+
+Implement:
+
+
+Documents
+
+↓
+
+Text Extraction
+
+↓
+
+Chunking
+
+↓
+
+Embeddings
+
+↓
+
+Vector Database
+
+↓
+
+Retriever
+
+↓
+
+Context Builder
+
+↓
+
+Grok API
+
+↓
+
+Response Generation
+
+
+
+==================================================
+KNOWLEDGE SOURCES
+==================================================
+
+
+Create support for:
+
+
+1. Patient Documents
+
+
+Examples:
+
+- Blood reports
+- Prescriptions
+- Medical summaries
+
+
+2. Medical Knowledge Base
+
+
+Examples:
+
+- Medical guidelines
+- Health education documents
+- Research summaries
+
+
+The system should maintain separation between:
+
+
+Patient Data
+
+and
+
+General Medical Knowledge
+
+
+
+==================================================
+VECTOR DATABASE
+==================================================
+
+
+Use:
+
+
+FAISS
+
+
+or
+
+
+Supabase Vector Extension
+
+
+
+Create:
+
+
+knowledge_embeddings
+
+
+Storage:
+
+
+- document_id
+- embedding
+- metadata
+- source_type
+- created_at
+
+
+
+==================================================
+EMBEDDING PIPELINE
+==================================================
+
+
+Implement:
+
+
+Text extraction
+
+↓
+
+Document cleaning
+
+↓
+
+Chunk creation
+
+↓
+
+Embedding generation
+
+↓
+
+Vector storage
+
+
+
+Use:
+
+Sentence Transformers
+
+
+Recommended:
+
+all-MiniLM-L6-v2
+
+
+The system should be lightweight and laptop-friendly.
+
+
+
+==================================================
+PATIENT CONTEXT RETRIEVAL
+==================================================
+
+
+When a patient asks:
+
+
+Example:
+
+
+"What does my latest blood report mean?"
+
+
+AVERIS should:
+
+
+1. Retrieve latest blood report
+
+2. Retrieve extracted medical values
+
+3. Retrieve relevant medical knowledge
+
+4. Generate explanation
+
+
+
+Example:
+
+
+Input:
+
+
+"My HbA1c is 8.2. What does this mean?"
+
+
+
+Retrieved context:
+
+
+Patient:
+
+HbA1c:
+8.2%
+
+
+Medical knowledge:
+
+Normal ranges and explanation
+
+
+
+Output:
+
+
+"Your HbA1c value indicates your average blood sugar level has been higher than recommended ranges. Consider discussing this with your healthcare provider."
+
+
+
+==================================================
+GROK AI INTEGRATION
+==================================================
+
+
+Use Grok API for:
+
+
+- Final response generation
+
+- Medical explanation
+
+- Summarization
+
+- Natural language conversion
+
+
+
+Do NOT use Grok for:
+
+- Risk prediction
+
+- Medical diagnosis
+
+- Data storage
+
+
+
+Create:
+
+
+services/
+
+
+    grok_service.py
+
+    rag_service.py
+
+    embedding_service.py
+
+    retrieval_service.py
+
+
+
+==================================================
+FEATURE 1: ASK YOUR HEALTH RECORDS
+==================================================
+
+
+Add a feature:
+
+
+"Ask AVERIS"
+
+
+Purpose:
+
+Patients can ask questions about their own medical history.
+
+
+
+Examples:
+
+
+"When was my diabetes first detected?"
+
+
+"What medicines have I taken before?"
+
+
+"Show my recent blood reports."
+
+
+"Explain my latest health report."
+
+
+
+The answer must come only from:
+
+- Patient records
+
+- Retrieved context
+
+
+
+==================================================
+FEATURE 2: AI MEDICAL SUMMARY GENERATOR
+==================================================
+
+
+Create:
+
+
+Health Summary Generator
+
+
+
+Input:
+
+
+Patient Digital Twin
+
++
+
+Medical history
+
+
+
+Output:
+
+
+Example:
+
+
+AVERIS Health Summary:
+
+
+"The patient has a history of hypertension and diabetes. Recent records indicate glucose monitoring is important. Medication history shows continued diabetes management."
+
+
+
+Include:
+
+
+- Important conditions
+
+- Medication history
+
+- Recent changes
+
+- Health trends
+
+
+
+==================================================
+FEATURE 3: REPORT EXPLANATION ASSISTANT
+==================================================
+
+
+When a patient opens a report:
+
+
+Add:
+
+
+"Explain this report"
+
+
+The system should:
+
+
+Extract:
+
+- Important values
+
+- Abnormal values
+
+- Medical terminology
+
+
+Generate:
+
+
+Simple explanation
+
+
+
+Example:
+
+
+Medical:
+
+
+"Elevated LDL cholesterol"
+
+
+
+Explanation:
+
+
+"LDL is commonly called bad cholesterol. Higher levels may increase cardiovascular risk."
+
+
+
+==================================================
+FEATURE 4: SOURCE TRANSPARENCY
+==================================================
+
+
+Healthcare AI requires trust.
+
+
+Every response should show:
+
+
+Sources used:
+
+
+Example:
+
+
+Based on:
+
+✓ Blood Report uploaded on March 2026
+
+✓ Patient medical history
+
+✓ Medical knowledge document
+
+
+
+==================================================
+DATABASE EXTENSION
+==================================================
+
+
+Create:
+
+
+TABLE:
+
+
+ai_conversations
+
+
+Fields:
+
+
+- id
+
+- patient_id
+
+- question
+
+- response
+
+- sources_used
+
+- created_at
+
+
+
+TABLE:
+
+
+knowledge_documents
+
+
+Fields:
+
+
+- id
+
+- title
+
+- category
+
+- source_type
+
+- created_at
+
+
+
+==================================================
+AVERIS UI/UX REQUIREMENTS
+==================================================
+
+
+Maintain AVERIS design system.
+
+
+The interface should feel like:
+
+
+A premium healthcare intelligence product.
+
+
+NOT:
+
+
+- ChatGPT clone
+
+- Messaging application
+
+- AI assistant widget
+
+
+Create:
+
+
+Health Intelligence Center
+
+
+
+Sections:
+
+
+1. Ask AVERIS
+
+2. Health Summary
+
+3. Report Explanation
+
+4. Medical Knowledge
+
+
+
+Design:
+
+
+- Professional
+- Calm
+- Clinical
+- Trustworthy
+
+
+
+==================================================
+SECURITY REQUIREMENTS
+==================================================
+
+
+Medical information is sensitive.
+
+
+Implement:
+
+
+- Patient-level data isolation
+
+- Secure retrieval filtering
+
+- Authentication checks
+
+- Conversation privacy
+
+
+
+A patient must never retrieve another patient's information.
+
+
+
+==================================================
+PERFORMANCE REQUIREMENTS
+==================================================
+
+
+Optimize for:
+
+- Fast retrieval
+
+- Efficient embeddings
+
+- Low API usage
+
+- Caching where appropriate
+
+
+
+Implement:
+
+- Document indexing
+
+- Embedding reuse
+
+- Retrieval optimization
+
+
+
+==================================================
+TESTING REQUIREMENTS
+==================================================
+
+
+Test:
+
+
+RAG Pipeline:
+
+
+✓ Document ingestion
+
+✓ Embedding creation
+
+✓ Retrieval accuracy
+
+✓ Response generation
+
+
+Patient Flow:
+
+
+✓ Upload document
+
+✓ Ask question
+
+✓ Retrieve correct context
+
+✓ Generate explanation
+
+
+Security:
+
+
+✓ Patient isolation
+
+✓ Protected conversations
+
+
+
+==================================================
+PHASE 5 FINAL SUCCESS CRITERIA
+==================================================
+
+
+At the end of Phase 5:
+
+
+AVERIS should provide:
+
+
+✓ Patient-aware RAG system
+
+✓ Medical knowledge retrieval
+
+✓ Ask your records feature
+
+✓ AI health summaries
+
+✓ Report explanation
+
+✓ Source transparency
+
+
+The final product should feel like:
+
+
+"AVERIS understands my health information and helps me make sense of it."
+
+
+Note:
+
+
+"AVERIS is another AI chatbot."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You are a Principal Cloud Architect, Senior DevOps Engineer, MLOps Engineer, Security Engineer, and SaaS Product Architect with 10+ years of experience building production-grade healthcare platforms.
+
+You are continuing development of:
+
+# AVERIS
+
+AVERIS is an AI-powered personalized healthcare intelligence platform.
+
+Completed phases:
+
+PHASE 1:
+- Patient authentication
+- Google OAuth
+- Supabase architecture
+- Patient profile system
+
+PHASE 2:
+- Medical document intelligence
+- OCR pipeline
+- Medical entity extraction
+- Structured medical records
+
+PHASE 3:
+- Patient Digital Twin
+- Health timeline
+- AI health summaries
+- Health insights
+
+PHASE 4:
+- ML risk prediction
+- Disease risk models
+- Explainable AI
+- SHAP analysis
+
+PHASE 5:
+- Medical RAG system
+- Patient-aware AI retrieval
+- Health record assistant
+- Report explanation system
+
+
+Your responsibility:
+
+Implement:
+
+# PHASE 6: AVERIS PRODUCTION ENGINEERING, MLOPS & SAAS FOUNDATION
+
+
+==================================================
+PHASE OBJECTIVE
+==================================================
+
+Transform AVERIS from a working application into a production-ready healthcare SaaS platform.
+
+The goal:
+
+Prepare AVERIS for:
+
+- Real users
+- Cloud deployment
+- Scalability
+- Security compliance
+- Monitoring
+- Future monetization
+
+
+==================================================
+CLOUD ARCHITECTURE
+==================================================
+
+Deploy AVERIS using:
+
+Google Cloud Platform (GCP)
+
+
+Design production architecture:
+
+
+Frontend:
+
+Next.js
+
+↓
+
+Cloud hosting
+
+
+Backend:
+
+API Service
+
+↓
+
+Cloud Run
+
+
+Database:
+
+Supabase PostgreSQL
+
+
+AI Services:
+
+Separate AI processing services
+
+
+Storage:
+
+Cloud Storage / Supabase Storage
+
+
+
+Create architecture documentation.
+
+
+==================================================
+CONTAINERIZATION
+==================================================
+
+Dockerize all services.
+
+
+Create:
+
+
+Frontend:
+
+Dockerfile
+
+
+Backend:
+
+Dockerfile
+
+
+AI Services:
+
+Dockerfile
+
+
+
+Requirements:
+
+- Optimized images
+- Environment variables
+- Production builds
+
+
+Create:
+
+
+docker-compose.yml
+
+
+for local development.
+
+
+
+==================================================
+CI/CD PIPELINE
+==================================================
+
+Implement automated deployment.
+
+
+Use:
+
+GitHub Actions
+
+
+Pipeline:
+
+
+Code Push
+
+↓
+
+Testing
+
+↓
+
+Build
+
+↓
+
+Docker Image
+
+↓
+
+Deployment
+
+
+
+Create workflows:
+
+
+.github/workflows/
+
+
+    frontend.yml
+
+    backend.yml
+
+    ai-service.yml
+
+
+
+==================================================
+ENVIRONMENT MANAGEMENT
+==================================================
+
+Create:
+
+
+Development environment
+
+
+Production environment
+
+
+
+Use:
+
+
+.env.example
+
+
+Separate:
+
+
+- Development variables
+
+- Production variables
+
+
+
+Never commit:
+
+- API keys
+
+- Secrets
+
+- Credentials
+
+
+
+==================================================
+SECURITY HARDENING
+==================================================
+
+Healthcare data requires strong security.
 
 
 Implement:
@@ -553,135 +1941,2090 @@ Implement:
 
 Authentication:
 
-- Secure session handling
-- Protected routes
+- Supabase Auth validation
+
+- JWT verification
+
+
+Authorization:
+
+- Role-based access structure
 
 
 Database:
 
-- Supabase Row Level Security
-- Patient can only access their own data
+- Row Level Security
+
+- Patient data isolation
 
 
-Backend:
+API Security:
 
-- Input validation
+- Rate limiting
+
+- Request validation
+
 - Error handling
-- Secure API communication
 
 
-Never expose:
 
-- Private keys
-- User credentials
-- Sensitive information
+File Security:
+
+- Secure upload validation
+
+- File type checking
+
+- Malware prevention considerations
+
 
 
 ==================================================
-ENGINEERING REQUIREMENTS
+AUDIT LOG SYSTEM
 ==================================================
 
-Before coding:
-
-
-First analyze the existing repository.
+Healthcare applications require activity tracking.
 
 
 Create:
 
 
-1. Architecture plan
-
-2. Folder structure
-
-3. Database schema
-
-4. Authentication flow
-
-5. Component structure
+audit_logs
 
 
-Then implement.
+Fields:
 
 
-Follow:
+- id
 
-- Clean code principles
-- SOLID principles
-- Reusable components
-- Proper naming conventions
-- Maintainable architecture
+- user_id
+
+- action
+
+- resource_type
+
+- resource_id
+
+- timestamp
+
+- metadata
+
+
+
+Track:
+
+
+Examples:
+
+
+User uploaded medical document
+
+
+User viewed health summary
+
+
+AI generated prediction
+
+
+User updated profile
+
+
+
+==================================================
+MLOPS PIPELINE
+==================================================
+
+Create ML lifecycle management.
+
+
+Implement:
+
+
+Model Tracking:
+
+Use:
+
+MLflow
+
+
+Track:
+
+
+- Model version
+
+- Dataset version
+
+- Parameters
+
+- Metrics
+
+
+Example:
+
+
+Diabetes Model
+
+
+Version:
+
+v1.0
+
+
+Accuracy:
+
+85%
+
+
+F1 Score:
+
+0.82
+
+
+
+==================================================
+MODEL DEPLOYMENT SERVICE
+==================================================
+
+Separate ML inference from application backend.
+
+
+Architecture:
+
+
+Application Backend
+
+↓
+
+ML API Service
+
+↓
+
+Model Inference
+
+
+
+Create:
+
+
+ml-service
+
+
+Responsibilities:
+
+
+- Load models
+
+- Receive prediction requests
+
+- Return predictions
+
+- Log inference
+
+
+
+==================================================
+MODEL MONITORING
+==================================================
+
+Implement basic monitoring.
+
+
+Track:
+
+
+- Prediction frequency
+
+- Response time
+
+- Model errors
+
+- Confidence changes
+
+
+
+Prepare architecture for future:
+
+- Data drift detection
+
+- Model retraining
+
+
+
+==================================================
+APPLICATION MONITORING
+==================================================
+
+Implement observability.
+
+
+Track:
+
+
+Backend:
+
+- API latency
+
+- Errors
+
+- Failed requests
+
+
+Frontend:
+
+- Performance issues
+
+
+AI Services:
+
+- API failures
+
+- Token usage
+
+- Response time
+
+
+
+Use:
+
+- Logging system
+
+- Structured logs
+
+
+
+==================================================
+CACHING SYSTEM
+==================================================
+
+Implement caching where useful.
+
+
+Use:
+
+
+Redis
+
+
+Cache:
+
+
+- Frequently accessed patient summaries
+
+- AI responses
+
+- Medical knowledge retrieval
+
+
+
+Do not cache sensitive information incorrectly.
+
+
+
+==================================================
+ASYNC PROCESSING
+==================================================
+
+Medical document processing can be slow.
+
+
+Implement background jobs.
+
+
+Example:
+
+
+Patient uploads document
+
+↓
+
+Queue
+
+↓
+
+Background AI processing
+
+↓
+
+Notification
+
+
+Use:
+
+
+- Background workers
+
+- Task queues
+
+
+
+==================================================
+NOTIFICATION SYSTEM
+==================================================
+
+Create notification foundation.
+
+
+Support:
+
+
+- Document processing completed
+
+- New health insight generated
+
+- Profile updates
+
+
+
+Future support:
+
+- Email notifications
+
+- Mobile notifications
+
+
+
+==================================================
+SAAS FOUNDATION
+==================================================
+
+Prepare AVERIS for monetization.
+
+
+Create architecture for:
+
+
+Free Plan:
+
+
+- Patient profile
+
+- Limited document uploads
+
+
+Premium Plan:
+
+
+- AI health insights
+
+- Unlimited document analysis
+
+- Advanced predictions
+
+
+
+Do NOT implement payments yet.
+
+
+Prepare:
+
+
+subscription_status
+
+
+field in user system.
+
+
+
+==================================================
+PERFORMANCE OPTIMIZATION
+==================================================
+
+Optimize:
+
+
+Frontend:
+
+- Lazy loading
+
+- Image optimization
+
+- Component optimization
+
+
+Backend:
+
+- Query optimization
+
+- API response optimization
+
+
+AI:
+
+- Embedding caching
+
+- Efficient retrieval
+
+
+
+==================================================
+DOCUMENTATION
+==================================================
+
+Create:
+
+
+README.md
+
+
+Include:
+
+
+- Product overview
+
+- Architecture
+
+- Setup instructions
+
+- Environment variables
+
+- Deployment steps
+
+
+Create:
+
+
+Architecture documentation
+
+
+Include:
+
+
+- System diagram
+
+- Data flow
+
+- AI pipeline
+
 
 
 ==================================================
 TESTING REQUIREMENTS
 ==================================================
 
-Test:
+
+Implement:
+
+
+Backend testing:
+
+- API tests
+
+- Authentication tests
+
+
+Frontend testing:
+
+- Component tests
+
+
+AI testing:
+
+- Model inference tests
+
+- RAG pipeline tests
+
+
+
+Security testing:
+
+
+✓ Unauthorized access prevention
+
+✓ Data isolation
+
+✓ Secure API handling
+
+
+
+==================================================
+FINAL PHASE 6 SUCCESS CRITERIA
+==================================================
+
+
+At the end of Phase 6:
+
+
+AVERIS should have:
+
+
+✓ Cloud-ready architecture
+
+✓ Docker setup
+
+✓ CI/CD pipeline
+
+✓ GCP deployment readiness
+
+✓ MLOps foundation
+
+✓ Security implementation
+
+✓ Audit logging
+
+✓ Monitoring
+
+✓ SaaS-ready architecture
+
+
+
+The final product should feel like:
+
+
+"A healthcare AI startup platform ready for real-world deployment."
+
+
+Not:
+
+"A machine learning demo running on a developer laptop."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You are a Principal Cloud Architect, Senior DevOps Engineer, MLOps Engineer, Security Engineer, and SaaS Product Architect with 10+ years of experience building production-grade healthcare platforms.
+
+You are continuing development of:
+
+# AVERIS
+
+AVERIS is an AI-powered personalized healthcare intelligence platform.
+
+Completed phases:
+
+PHASE 1:
+- Patient authentication
+- Google OAuth
+- Supabase architecture
+- Patient profile system
+
+PHASE 2:
+- Medical document intelligence
+- OCR pipeline
+- Medical entity extraction
+- Structured medical records
+
+PHASE 3:
+- Patient Digital Twin
+- Health timeline
+- AI health summaries
+- Health insights
+
+PHASE 4:
+- ML risk prediction
+- Disease risk models
+- Explainable AI
+- SHAP analysis
+
+PHASE 5:
+- Medical RAG system
+- Patient-aware AI retrieval
+- Health record assistant
+- Report explanation system
+
+
+Your responsibility:
+
+Implement:
+
+# PHASE 6: AVERIS PRODUCTION ENGINEERING, MLOPS & SAAS FOUNDATION
+
+
+==================================================
+PHASE OBJECTIVE
+==================================================
+
+Transform AVERIS from a working application into a production-ready healthcare SaaS platform.
+
+The goal:
+
+Prepare AVERIS for:
+
+- Real users
+- Cloud deployment
+- Scalability
+- Security compliance
+- Monitoring
+- Future monetization
+
+
+==================================================
+CLOUD ARCHITECTURE
+==================================================
+
+Deploy AVERIS using:
+
+Google Cloud Platform (GCP)
+
+
+Design production architecture:
+
+
+Frontend:
+
+Next.js
+
+↓
+
+Cloud hosting
+
+
+Backend:
+
+API Service
+
+↓
+
+Cloud Run
+
+
+Database:
+
+Supabase PostgreSQL
+
+
+AI Services:
+
+Separate AI processing services
+
+
+Storage:
+
+Cloud Storage / Supabase Storage
+
+
+
+Create architecture documentation.
+
+
+==================================================
+CONTAINERIZATION
+==================================================
+
+Dockerize all services.
+
+
+Create:
+
+
+Frontend:
+
+Dockerfile
+
+
+Backend:
+
+Dockerfile
+
+
+AI Services:
+
+Dockerfile
+
+
+
+Requirements:
+
+- Optimized images
+- Environment variables
+- Production builds
+
+
+Create:
+
+
+docker-compose.yml
+
+
+for local development.
+
+
+
+==================================================
+CI/CD PIPELINE
+==================================================
+
+Implement automated deployment.
+
+
+Use:
+
+GitHub Actions
+
+
+Pipeline:
+
+
+Code Push
+
+↓
+
+Testing
+
+↓
+
+Build
+
+↓
+
+Docker Image
+
+↓
+
+Deployment
+
+
+
+Create workflows:
+
+
+.github/workflows/
+
+
+    frontend.yml
+
+    backend.yml
+
+    ai-service.yml
+
+
+
+==================================================
+ENVIRONMENT MANAGEMENT
+==================================================
+
+Create:
+
+
+Development environment
+
+
+Production environment
+
+
+
+Use:
+
+
+.env.example
+
+
+Separate:
+
+
+- Development variables
+
+- Production variables
+
+
+
+Never commit:
+
+- API keys
+
+- Secrets
+
+- Credentials
+
+
+
+==================================================
+SECURITY HARDENING
+==================================================
+
+Healthcare data requires strong security.
+
+
+Implement:
 
 
 Authentication:
 
-✓ Signup works
+- Supabase Auth validation
 
-✓ Login works
-
-✓ Google authentication works
-
-✓ Logout works
+- JWT verification
 
 
-Profile:
+Authorization:
 
-✓ User onboarding works
-
-✓ Data saves correctly
-
-✓ Dashboard loads correctly
+- Role-based access structure
 
 
-Security:
+Database:
 
-✓ Unauthorized users cannot access patient data
+- Row Level Security
+
+- Patient data isolation
 
 
-UI:
+API Security:
 
-✓ Responsive design
+- Rate limiting
 
-✓ Mobile compatibility
+- Request validation
 
-✓ No broken states
+- Error handling
+
+
+
+File Security:
+
+- Secure upload validation
+
+- File type checking
+
+- Malware prevention considerations
+
 
 
 ==================================================
-PHASE 1 FINAL SUCCESS CRITERIA
+AUDIT LOG SYSTEM
 ==================================================
 
-At the end of Phase 1, AVERIS should have:
+Healthcare applications require activity tracking.
 
 
-✓ Premium healthcare landing page
-
-✓ Patient signup/login
-
-✓ Google OAuth authentication
-
-✓ Secure Supabase backend
-
-✓ Patient onboarding workflow
-
-✓ Patient profile management
-
-✓ Healthcare dashboard foundation
-
-✓ Production-ready architecture
+Create:
 
 
-The final output should feel like:
+audit_logs
 
-"The first production release of a healthcare SaaS startup called AVERIS."
 
-It should not feel like:
+Fields:
 
-"A student project with authentication added."
+
+- id
+
+- user_id
+
+- action
+
+- resource_type
+
+- resource_id
+
+- timestamp
+
+- metadata
+
+
+
+Track:
+
+
+Examples:
+
+
+User uploaded medical document
+
+
+User viewed health summary
+
+
+AI generated prediction
+
+
+User updated profile
+
+
+
+==================================================
+MLOPS PIPELINE
+==================================================
+
+Create ML lifecycle management.
+
+
+Implement:
+
+
+Model Tracking:
+
+Use:
+
+MLflow
+
+
+Track:
+
+
+- Model version
+
+- Dataset version
+
+- Parameters
+
+- Metrics
+
+
+Example:
+
+
+Diabetes Model
+
+
+Version:
+
+v1.0
+
+
+Accuracy:
+
+85%
+
+
+F1 Score:
+
+0.82
+
+
+
+==================================================
+MODEL DEPLOYMENT SERVICE
+==================================================
+
+Separate ML inference from application backend.
+
+
+Architecture:
+
+
+Application Backend
+
+↓
+
+ML API Service
+
+↓
+
+Model Inference
+
+
+
+Create:
+
+
+ml-service
+
+
+Responsibilities:
+
+
+- Load models
+
+- Receive prediction requests
+
+- Return predictions
+
+- Log inference
+
+
+
+==================================================
+MODEL MONITORING
+==================================================
+
+Implement basic monitoring.
+
+
+Track:
+
+
+- Prediction frequency
+
+- Response time
+
+- Model errors
+
+- Confidence changes
+
+
+
+Prepare architecture for future:
+
+- Data drift detection
+
+- Model retraining
+
+
+
+==================================================
+APPLICATION MONITORING
+==================================================
+
+Implement observability.
+
+
+Track:
+
+
+Backend:
+
+- API latency
+
+- Errors
+
+- Failed requests
+
+
+Frontend:
+
+- Performance issues
+
+
+AI Services:
+
+- API failures
+
+- Token usage
+
+- Response time
+
+
+
+Use:
+
+- Logging system
+
+- Structured logs
+
+
+
+==================================================
+CACHING SYSTEM
+==================================================
+
+Implement caching where useful.
+
+
+Use:
+
+
+Redis
+
+
+Cache:
+
+
+- Frequently accessed patient summaries
+
+- AI responses
+
+- Medical knowledge retrieval
+
+
+
+Do not cache sensitive information incorrectly.
+
+
+
+==================================================
+ASYNC PROCESSING
+==================================================
+
+Medical document processing can be slow.
+
+
+Implement background jobs.
+
+
+Example:
+
+
+Patient uploads document
+
+↓
+
+Queue
+
+↓
+
+Background AI processing
+
+↓
+
+Notification
+
+
+Use:
+
+
+- Background workers
+
+- Task queues
+
+
+
+==================================================
+NOTIFICATION SYSTEM
+==================================================
+
+Create notification foundation.
+
+
+Support:
+
+
+- Document processing completed
+
+- New health insight generated
+
+- Profile updates
+
+
+
+Future support:
+
+- Email notifications
+
+- Mobile notifications
+
+
+
+==================================================
+SAAS FOUNDATION
+==================================================
+
+Prepare AVERIS for monetization.
+
+
+Create architecture for:
+
+
+Free Plan:
+
+
+- Patient profile
+
+- Limited document uploads
+
+
+Premium Plan:
+
+
+- AI health insights
+
+- Unlimited document analysis
+
+- Advanced predictions
+
+
+
+Do NOT implement payments yet.
+
+
+Prepare:
+
+
+subscription_status
+
+
+field in user system.
+
+
+
+==================================================
+PERFORMANCE OPTIMIZATION
+==================================================
+
+Optimize:
+
+
+Frontend:
+
+- Lazy loading
+
+- Image optimization
+
+- Component optimization
+
+
+Backend:
+
+- Query optimization
+
+- API response optimization
+
+
+AI:
+
+- Embedding caching
+
+- Efficient retrieval
+
+
+
+==================================================
+DOCUMENTATION
+==================================================
+
+Create:
+
+
+README.md
+
+
+Include:
+
+
+- Product overview
+
+- Architecture
+
+- Setup instructions
+
+- Environment variables
+
+- Deployment steps
+
+
+Create:
+
+
+Architecture documentation
+
+
+Include:
+
+
+- System diagram
+
+- Data flow
+
+- AI pipeline
+
+
+
+==================================================
+TESTING REQUIREMENTS
+==================================================
+
+
+Implement:
+
+
+Backend testing:
+
+- API tests
+
+- Authentication tests
+
+
+Frontend testing:
+
+- Component tests
+
+
+AI testing:
+
+- Model inference tests
+
+- RAG pipeline tests
+
+
+
+Security testing:
+
+
+✓ Unauthorized access prevention
+
+✓ Data isolation
+
+✓ Secure API handling
+
+
+
+==================================================
+FINAL PHASE 6 SUCCESS CRITERIA
+==================================================
+
+
+At the end of Phase 6:
+
+
+AVERIS should have:
+
+
+✓ Cloud-ready architecture
+
+✓ Docker setup
+
+✓ CI/CD pipeline
+
+✓ GCP deployment readiness
+
+✓ MLOps foundation
+
+✓ Security implementation
+
+✓ Audit logging
+
+✓ Monitoring
+
+✓ SaaS-ready architecture
+
+
+
+The final product should feel like:
+
+
+"A healthcare AI startup platform ready for real-world deployment."
+
+
+Not:
+
+"A machine learning demo running on a developer laptop."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You are a Principal Product Engineer, Healthcare SaaS Architect, AI Engineer, UX Designer, and Startup CTO with 10+ years of experience building healthcare platforms used by real users.
+
+You are continuing development of:
+
+# AVERIS
+
+AVERIS is an AI-powered personalized healthcare intelligence platform.
+
+Completed phases:
+
+PHASE 1:
+- Patient authentication
+- Google OAuth
+- Supabase architecture
+- Patient profile system
+
+PHASE 2:
+- Medical document intelligence
+- OCR processing
+- AI medical extraction
+- Structured health records
+
+PHASE 3:
+- Patient Digital Twin
+- Medical timeline
+- Health summaries
+- Health insights
+
+PHASE 4:
+- Machine learning risk prediction
+- Disease risk models
+- Explainable AI
+- SHAP analysis
+
+PHASE 5:
+- Medical RAG system
+- Patient-aware AI retrieval
+- Health record assistant
+- Report explanation
+
+PHASE 6:
+- GCP deployment
+- Docker
+- CI/CD
+- Monitoring
+- Security
+- MLOps foundation
+
+
+Your responsibility:
+
+Implement:
+
+# PHASE 7: AVERIS PERSONAL HEALTH ECOSYSTEM
+
+
+==================================================
+PHASE OBJECTIVE
+==================================================
+
+Expand AVERIS from a personal health intelligence platform into a complete patient healthcare ecosystem.
+
+The goal:
+
+Help patients manage their entire healthcare journey from one platform.
+
+AVERIS should support:
+
+- Personal health management
+- Family health management
+- Emergency information
+- Multi-language accessibility
+- Voice-based health input
+- Better patient engagement
+
+
+==================================================
+FEATURE 1: MULTI-LANGUAGE HEALTH INTELLIGENCE
+==================================================
+
+Implement multilingual healthcare support.
+
+
+Supported languages initially:
+
+- English
+- Hindi
+
+
+Architecture should support future:
+
+- Kannada
+- Tamil
+- Telugu
+- Marathi
+- Bengali
+
+
+Features:
+
+Users can choose preferred language.
+
+
+The following should support translation:
+
+- Dashboard
+- Health summaries
+- AI explanations
+- Medical terminology explanations
+- Notifications
+
+
+Important:
+
+Medical meaning must remain accurate during translation.
+
+
+Use:
+
+Grok API for language transformation where appropriate.
+
+
+Create:
+
+
+services/
+
+
+language_service
+
+
+
+==================================================
+FEATURE 2: VOICE HEALTH INPUT SYSTEM
+==================================================
+
+Create voice-based patient interaction.
+
+
+Purpose:
+
+Help elderly and non-technical users provide health information easily.
+
+
+Workflow:
+
+
+Patient speaks:
+
+
+"I have diabetes since 2020 and I take medicine every morning."
+
+
+↓
+
+Speech-to-text
+
+↓
+
+Medical information extraction
+
+↓
+
+Patient profile update suggestion
+
+
+==================================================
+VOICE PIPELINE
+==================================================
+
+
+Implement:
+
+
+Audio Input
+
+↓
+
+Speech Recognition
+
+↓
+
+Text Processing
+
+↓
+
+Medical Entity Extraction
+
+↓
+
+Patient Verification
+
+↓
+
+Database Update
+
+
+
+Possible technologies:
+
+- Google Speech-to-Text
+- Browser Web Speech API
+
+
+==================================================
+IMPORTANT SAFETY RULE
+==================================================
+
+
+Voice input should never directly modify medical records.
+
+Always show:
+
+
+"AVERIS detected the following information"
+
+
+Patient must:
+
+Confirm
+
+Edit
+
+Reject
+
+
+
+==================================================
+FEATURE 3: FAMILY HEALTH MANAGEMENT
+==================================================
+
+Allow patients to manage family members.
+
+
+Example:
+
+
+Primary User:
+
+Rahul Sharma
+
+
+Family Profiles:
+
+- Father
+- Mother
+- Child
+
+
+Each member gets:
+
+
+- Separate profile
+- Separate medical history
+- Separate documents
+- Separate health timeline
+- Separate AI insights
+
+
+==================================================
+DATABASE EXTENSION
+==================================================
+
+
+Create:
+
+
+TABLE:
+
+family_members
+
+
+Fields:
+
+
+- id
+- owner_user_id
+- member_name
+- relationship
+- date_of_birth
+- gender
+- created_at
+
+
+
+Connect:
+
+
+family member
+
+↓
+
+patient profile
+
+↓
+
+medical records
+
+
+
+==================================================
+FEATURE 4: EMERGENCY HEALTH CARD
+==================================================
+
+Create a digital emergency profile.
+
+
+Purpose:
+
+Provide critical health information during emergencies.
+
+
+Generate:
+
+
+AVERIS Emergency Card
+
+
+Contains:
+
+
+- Full name
+- Blood group
+- Allergies
+- Medical conditions
+- Current medications
+- Emergency contact
+
+
+
+Design:
+
+A simple mobile-friendly card.
+
+
+Allow:
+
+- Download PDF
+- Share emergency profile link
+
+
+
+==================================================
+SECURITY REQUIREMENTS
+==================================================
+
+
+Emergency sharing requires:
+
+
+- User permission
+- Expiry option
+- Access logging
+
+
+Example:
+
+
+Emergency card accessed:
+
+Date:
+
+Time:
+
+Location:
+
+
+==================================================
+FEATURE 5: HEALTH GOAL TRACKING
+==================================================
+
+Add personal wellness tracking.
+
+
+Users can track:
+
+
+- Weight
+- Exercise
+- Water intake
+- Sleep
+- Lifestyle goals
+
+
+Create:
+
+
+Health Goals Dashboard
+
+
+Example:
+
+
+Goal:
+
+Reduce weight
+
+
+Progress:
+
+72%
+
+
+
+==================================================
+FEATURE 6: APPOINTMENT MANAGEMENT FOUNDATION
+==================================================
+
+Create appointment management.
+
+
+Features:
+
+
+Patients can add:
+
+
+- Doctor name
+- Hospital name
+- Appointment date
+- Reason
+
+
+After appointment:
+
+
+Upload:
+
+- Prescription
+- Consultation notes
+
+
+
+Connect appointment history with medical timeline.
+
+
+
+==================================================
+FEATURE 7: SMART HEALTH NOTIFICATIONS
+==================================================
+
+Create notification framework.
+
+
+Examples:
+
+
+"Your health report was processed."
+
+
+"New health insight generated."
+
+
+"Your appointment is tomorrow."
+
+
+"Medication reminder."
+
+
+Architecture should support:
+
+
+- Email notifications
+- Push notifications
+- Mobile notifications
+
+
+==================================================
+FEATURE 8: PATIENT EXPERIENCE IMPROVEMENT
+==================================================
+
+
+Improve overall UX.
+
+
+Create:
+
+
+Personalized home screen:
+
+
+Example:
+
+
+Good Morning Rahul
+
+
+Health Overview:
+
+
+Risk Status
+
+Recent Reports
+
+Upcoming Appointments
+
+Health Goals
+
+
+The experience should feel personal.
+
+
+
+==================================================
+UI/UX REQUIREMENTS
+==================================================
+
+
+Maintain AVERIS design identity.
+
+
+The interface should feel:
+
+
+- Premium healthcare application
+- Calm
+- Trustworthy
+- Human-centered
+
+
+Avoid:
+
+
+- Generic AI assistant UI
+- Chat interfaces everywhere
+- Gamification overload
+
+
+Design inspiration:
+
+- Apple Health
+- Premium hospital portals
+- Enterprise healthcare applications
+
+
+
+==================================================
+BACKEND REQUIREMENTS
+==================================================
+
+
+Create modular services:
+
+
+services/
+
+
+    language_service
+
+    voice_service
+
+    family_service
+
+    emergency_service
+
+    notification_service
+
+
+
+Follow:
+
+- Clean architecture
+- Proper API separation
+- Error handling
+
+
+
+==================================================
+SECURITY REQUIREMENTS
+==================================================
+
+
+Implement:
+
+
+- Family permission controls
+- Emergency sharing permissions
+- Audit logs
+- Secure data access
+
+
+A user must only access:
+
+- Their own health data
+
+- Authorized family member data
+
+
+
+==================================================
+TESTING REQUIREMENTS
+==================================================
+
+
+Test:
+
+
+Language:
+
+✓ Translation accuracy
+
+✓ UI language switching
+
+
+Voice:
+
+✓ Speech conversion
+
+✓ Medical extraction
+
+✓ Confirmation workflow
+
+
+Family:
+
+✓ Create member
+
+✓ Separate records
+
+✓ Permission control
+
+
+Emergency:
+
+✓ Generate card
+
+✓ Secure sharing
+
+
+
+==================================================
+PHASE 7 FINAL SUCCESS CRITERIA
+==================================================
+
+
+At the end of Phase 7:
+
+
+AVERIS should have:
+
+
+✓ Multi-language healthcare experience
+
+✓ Voice-based health input
+
+✓ Family health management
+
+✓ Emergency health card
+
+✓ Health goals tracking
+
+✓ Appointment management
+
+✓ Smart notifications
+
+
+The final product should feel like:
+
+
+"AVERIS is a complete personal healthcare companion for everyday life."
+
+
+Not:
+
+
+"AVERIS is only a medical document analyzer."
