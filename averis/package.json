@@ -11,7 +11,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
-    "types:gen": "supabase gen types typescript --local > lib/supabase/database.types.ts"
+    "types:gen": "supabase gen types typescript --local > lib/supabase/database.types.ts",
+    "test": "tsx --test lib/services/documents/__tests__/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",
@@ -20,6 +21,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",
+    "tesseract.js": "7.0.0",
+    "unpdf": "1.8.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -29,6 +32,7 @@
     "@types/react-dom": "19.2.4",
     "supabase": "^2.111.0",
     "tailwindcss": "4.3.3",
+    "tsx": "4.23.5",
     "typescript": "7.0.2"
   }
 }
