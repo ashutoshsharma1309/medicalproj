@@ -190,10 +190,23 @@ reconciliation rule that **nothing is written without an explicit confirmation**
 
 | Variable | Purpose |
 |---|---|
-| `GROK_API_KEY` | Required for extraction. Server-only. |
-| `GROK_MODEL` | Defaults to `grok-4`. |
+| `GROQ_API_KEY` | Groq key (`gsk_…`). Required for extraction. Server-only. |
+| `GROK_API_KEY` | Alias, for an xAI key (`xai-…`) instead. |
+| `AI_MODEL` / `AI_BASE_URL` | Optional overrides. |
 | `OCR_PROVIDER` | `tesseract` (default, no external dependency) or `google-vision`. |
 | `GOOGLE_CLOUD_VISION_API_KEY` | Required only when `OCR_PROVIDER=google-vision`. |
+
+> **Groq is not Grok.** Two different companies, near-identical names.
+> **Groq** (groq.com) is an inference provider serving open models; its keys start `gsk_`.
+> **Grok** (x.ai) is xAI's own model family; its keys start `xai-`. Both expose the same
+> OpenAI-compatible API, so `lib/ai/provider.ts` serves either and infers which from the key
+> prefix.
+
+**Model choice on Groq.** The default is `openai/gpt-oss-120b`, chosen by comparing candidates
+on a real lab report. Llama 3.3 70B and Qwen 3.6 27B both returned a flat confidence of `1.0`
+for *every* field, which would make AVERIS's low-confidence review flagging purely decorative.
+gpt-oss-120b discriminates: `1.0` on a clean typed report, `0.70` overall on a degraded scan
+with the worst-damaged values dropping to `0.50`.
 
 Apply the Phase 2 migrations to your Supabase project (`npx supabase db push`). They create the
 three tables plus the private `medical-documents` storage bucket and its policies.

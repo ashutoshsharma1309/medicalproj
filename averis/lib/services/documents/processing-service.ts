@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { downloadDocument } from "./storage-service";
 import { extractDocumentText } from "./text-extraction";
-import { extractMedicalData } from "./grok-service";
+import { extractMedicalData } from "./extraction-service";
 import { overallConfidence, enforceNoDiagnosis } from "./review";
 import { DocumentProcessingError } from "./types";
 
@@ -15,7 +15,7 @@ import { DocumentProcessingError } from "./types";
  *
  *   storage-service  → fetch the bytes
  *   text-extraction  → PDF text layer or OCR
- *   grok-service     → structured medical extraction
+ *   extraction-service → structured medical extraction
  *   this file        → status transitions + persistence
  *
  *   PENDING → PROCESSING → PENDING_REVIEW

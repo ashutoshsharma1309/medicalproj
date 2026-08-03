@@ -115,12 +115,31 @@ export function attentionCount(items: ReviewItem[]): number {
  * phrasing despite the system prompt, the sentence is replaced rather than
  * shown. Belt and braces: the prompt asks, this enforces.
  */
+/**
+ * The line this draws: restating what a document records is allowed; forming a
+ * clinical judgement about it is not.
+ *
+ *   allowed — "This report records an HbA1c of 8.2%."
+ *   allowed — "Several values fall outside the stated reference ranges."
+ *   blocked — "These findings indicate your diabetes control may need attention."
+ *   blocked — "Your cholesterol requires monitoring."
+ *
+ * The last two patterns were added after live testing: a real model produced
+ * exactly that "findings indicate … may need attention" phrasing despite the
+ * system prompt forbidding it, and the original patterns let it through.
+ */
 const DIAGNOSTIC_PHRASES = [
   /\byou (?:have|are suffering from|are diagnosed with)\b/i,
   /\bthis (?:confirms|indicates that you have|means you have)\b/i,
   /\bdiagnos(?:is|ed|tic) (?:is|of)\b/i,
   /\byou should (?:take|start|stop|increase|decrease)\b/i,
   /\bprescrib\w*\b/i,
+
+  // Drawing a conclusion from the values rather than restating them.
+  /\b(?:finding|result|value|level|marker)s?\s+(?:indicate|suggest|imply|reflect|point to|confirm)\b/i,
+  // Recommending action, however softly hedged.
+  /\bmay\s+(?:need|require|warrant|indicate|suggest)\b/i,
+  /\b(?:need|require|warrant)s?\s+(?:attention|monitoring|treatment|follow[-\s]?up|intervention|management|review)\b/i,
 ];
 
 const REFERRAL_LINE =

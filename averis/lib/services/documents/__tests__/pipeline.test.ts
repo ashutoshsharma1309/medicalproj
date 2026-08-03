@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { medicalExtraction, REVIEW_THRESHOLD, type MedicalExtraction } from "../types";
 import { buildReviewItems, overallConfidence, enforceNoDiagnosis } from "../review";
 import { buildReconciliationPlan, mergeList } from "../reconciliation";
-import { extractMedicalData, parseJsonPayload } from "../grok-service";
+import { extractMedicalData, parseJsonPayload } from "../extraction-service";
 import { validateUpload, buildStoragePath, contentMatchesMimeType } from "../storage-validation";
 
 /* ------------------------------------------------------------- fixtures */
@@ -198,6 +198,53 @@ test("a summary that already refers on is not double-appended", () => {
   const text = "This records an HbA1c of 8.2%. Discuss with your healthcare provider.";
   const result = enforceNoDiagnosis(text);
   assert.equal(result.summary, text);
+});
+
+/*
+ * Regression fixtures: verbatim summaries produced by real models on Groq for
+ * the same lab report. gpt-oss-120b drew a clinical conclusion despite the
+ * system prompt forbidding it, and the original guardrail let it through.
+ */
+test("guardrail catches real-world interpretive drift (gpt-oss-120b)", () => {
+  const real =
+    "Your recent blood test shows elevated HbA1c, fasting glucose, total cholesterol, " +
+    "and LDL cholesterol, with a low HDL cholesterol level. These findings indicate that " +
+    "your diabetes and lipid control may need attention. Please discuss these results " +
+    "with your healthcare provider.";
+
+  const result = enforceNoDiagnosis(real);
+  assert.equal(result.rewritten, true, "clinical judgement must not reach the patient");
+  assert.doesNotMatch(result.summary, /may need attention/i);
+});
+
+test("guardrail leaves genuinely observational summaries intact", () => {
+  // Both verbatim from real models on the same document.
+  const observational = [
+    "This document records your recent blood test results for glucose, cholesterol, and " +
+      "kidney function markers. Several measured values fall outside the laboratory's " +
+      "provided reference ranges.",
+    "Your blood test results show elevated levels of blood glucose and cholesterol. " +
+      "Please consult your healthcare provider to discuss your results and any necessary " +
+      "next steps.",
+  ];
+
+  for (const text of observational) {
+    assert.equal(
+      enforceNoDiagnosis(text).rewritten,
+      false,
+      `restating the document must not be rewritten: ${text.slice(0, 50)}…`,
+    );
+  }
+});
+
+test("guardrail blocks recommendation phrasing", () => {
+  for (const phrase of [
+    "Your cholesterol requires monitoring.",
+    "These values suggest a need to review your medication.",
+    "This result may require follow-up.",
+  ]) {
+    assert.equal(enforceNoDiagnosis(phrase).rewritten, true, `should block: ${phrase}`);
+  }
 });
 
 /* ------------------------------------------------------ reconciliation */
