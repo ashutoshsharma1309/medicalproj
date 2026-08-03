@@ -1,0 +1,273 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/session";
+import {
+  buildStoragePath,
+  uploadDocument,
+  removeDocument,
+  validateUpload,
+} from "@/lib/services/documents/storage-service";
+import { processDocument } from "@/lib/services/documents/processing-service";
+import { buildReviewItems } from "@/lib/services/documents/review";
+import {
+  buildReconciliationPlan,
+  mergeList,
+} from "@/lib/services/documents/reconciliation";
+import type {
+  MedicalExtraction,
+  ReviewSubmission,
+} from "@/lib/services/documents/types";
+import type { DocumentType } from "@/lib/supabase/database.types";
+
+/**
+ * API layer for the document pipeline.
+ *
+ * Every action re-establishes the session and the caller's patient profile
+ * before touching anything. Server Actions are POSTs to their host route, so
+ * proxy coverage is never treated as sufficient. Row Level Security is the
+ * backstop: even a logic slip here cannot reach another patient's data.
+ */
+
+const DOCUMENT_TYPES: DocumentType[] = [
+  "BLOOD_REPORT",
+  "LAB_RESULT",
+  "HEALTH_CHECKUP",
+  "PRESCRIPTION",
+  "DISCHARGE_SUMMARY",
+  "DIAGNOSIS_REPORT",
+  "CONSULTATION_NOTE",
+  "OTHER",
+];
+
+export type UploadState = {
+  error: string | null;
+  documentId?: string;
+  status?: "PENDING_REVIEW" | "FAILED";
+};
+
+export async function uploadMedicalDocumentAction(
+  _prev: UploadState,
+  formData: FormData,
+): Promise<UploadState> {
+  const account = await requireUser();
+  if (!account.patientProfileId) {
+    return { error: "Complete your health profile before uploading documents." };
+  }
+
+  const file = formData.get("file");
+  const rawType = String(formData.get("documentType") ?? "OTHER");
+  const documentType: DocumentType = DOCUMENT_TYPES.includes(rawType as DocumentType)
+    ? (rawType as DocumentType)
+    : "OTHER";
+
+  if (!(file instanceof File)) {
+    return { error: "Choose a document to upload." };
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const validation = validateUpload({ size: file.size, type: file.type, bytes });
+  if (!validation.ok) {
+    return { error: validation.error };
+  }
+
+  const supabase = await createClient();
+  const storagePath = buildStoragePath(account.patientProfileId, validation.mimeType);
+
+  try {
+    await uploadDocument(supabase, storagePath, bytes, validation.mimeType);
+  } catch {
+    return { error: "We could not store your document. Please try again." };
+  }
+
+  const safeName = file.name.replace(/[^\w.\-() ]/g, "_").slice(0, 160) || "document";
+
+  const { data: document, error: insertError } = await supabase
+    .from("medical_documents")
+    .insert({
+      patient_id: account.patientProfileId,
+      file_name: safeName,
+      file_path: storagePath,
+      mime_type: validation.mimeType,
+      file_size: file.size,
+      document_type: documentType,
+      upload_status: "PENDING",
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !document) {
+    // Do not leave an orphaned object behind if the row could not be written.
+    await removeDocument(supabase, storagePath);
+    return { error: "We could not record your upload. Please try again." };
+  }
+
+  // Processed inline: uploads are small and the patient is waiting on the
+  // result. A queue worker is the Phase 3 move once volume justifies it.
+  const result = await processDocument(supabase, document.id);
+
+  revalidatePath("/records");
+  revalidatePath("/dashboard");
+
+  return result.ok
+    ? { error: null, documentId: document.id, status: "PENDING_REVIEW" }
+    : { error: result.error, documentId: document.id, status: "FAILED" };
+}
+
+export async function reprocessDocumentAction(documentId: string): Promise<UploadState> {
+  const account = await requireUser();
+  if (!account.patientProfileId) return { error: "Complete your health profile first." };
+
+  const supabase = await createClient();
+
+  // Ownership check in application code as well as RLS.
+  const { data: document } = await supabase
+    .from("medical_documents")
+    .select("id, patient_id")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (!document || document.patient_id !== account.patientProfileId) {
+    return { error: "Document not found." };
+  }
+
+  const result = await processDocument(supabase, documentId);
+  revalidatePath("/records");
+  revalidatePath(`/records/${documentId}`);
+
+  return result.ok
+    ? { error: null, documentId, status: "PENDING_REVIEW" }
+    : { error: result.error, documentId, status: "FAILED" };
+}
+
+export type ConfirmState = {
+  error: string | null;
+  confirmed?: number;
+  rejected?: number;
+};
+
+/**
+ * The verification step. Nothing an extraction produced reaches the patient's
+ * health profile until it arrives here with an explicit CONFIRM decision.
+ */
+export async function confirmExtractionAction(
+  documentId: string,
+  submissions: ReviewSubmission[],
+): Promise<ConfirmState> {
+  const account = await requireUser();
+  if (!account.patientProfileId) return { error: "Complete your health profile first." };
+
+  const supabase = await createClient();
+
+  const { data: document } = await supabase
+    .from("medical_documents")
+    .select("id, patient_id, upload_status")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (!document || document.patient_id !== account.patientProfileId) {
+    return { error: "Document not found." };
+  }
+
+  const { data: extraction } = await supabase
+    .from("document_extractions")
+    .select("extracted_data")
+    .eq("document_id", documentId)
+    .maybeSingle();
+
+  if (!extraction) {
+    return { error: "This document has no extracted information to review." };
+  }
+
+  const items = buildReviewItems(extraction.extracted_data as MedicalExtraction);
+
+  const { data: profile } = await supabase
+    .from("patient_health_information")
+    .select("allergies, existing_conditions, current_medications")
+    .eq("patient_id", account.patientProfileId)
+    .maybeSingle();
+
+  const existing = {
+    conditions: profile?.existing_conditions ?? [],
+    medications: profile?.current_medications ?? [],
+    allergies: profile?.allergies ?? [],
+  };
+
+  const plan = buildReconciliationPlan(items, submissions, existing);
+
+  if (plan.records.length > 0) {
+    const { error: recordsError } = await supabase.from("patient_medical_records").insert(
+      plan.records.map((record) => ({
+        ...record,
+        patient_id: account.patientProfileId!,
+        source_document_id: documentId,
+      })),
+    );
+    if (recordsError) {
+      return { error: "We could not save the confirmed information. Please try again." };
+    }
+  }
+
+  // Additive merge — confirming a document never removes anything the patient
+  // entered themselves.
+  const hasProfileAdditions =
+    plan.profileAdditions.conditions.length > 0 ||
+    plan.profileAdditions.medications.length > 0 ||
+    plan.profileAdditions.allergies.length > 0;
+
+  if (hasProfileAdditions) {
+    const { error: profileError } = await supabase
+      .from("patient_health_information")
+      .upsert(
+        {
+          patient_id: account.patientProfileId,
+          existing_conditions: mergeList(existing.conditions, plan.profileAdditions.conditions),
+          current_medications: mergeList(existing.medications, plan.profileAdditions.medications),
+          allergies: mergeList(existing.allergies, plan.profileAdditions.allergies),
+        },
+        { onConflict: "patient_id" },
+      );
+    if (profileError) {
+      return { error: "We could not update your health profile. Please try again." };
+    }
+  }
+
+  await supabase
+    .from("medical_documents")
+    .update({ upload_status: "COMPLETED" })
+    .eq("id", documentId);
+
+  revalidatePath("/records");
+  revalidatePath("/dashboard");
+  revalidatePath(`/records/${documentId}`);
+
+  return {
+    error: null,
+    confirmed: plan.confirmedCount,
+    rejected: plan.rejectedCount,
+  };
+}
+
+export async function deleteDocumentAction(documentId: string): Promise<{ error: string | null }> {
+  const account = await requireUser();
+  if (!account.patientProfileId) return { error: "Complete your health profile first." };
+
+  const supabase = await createClient();
+
+  const { data: document } = await supabase
+    .from("medical_documents")
+    .select("id, patient_id, file_path")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (!document || document.patient_id !== account.patientProfileId) {
+    return { error: "Document not found." };
+  }
+
+  await removeDocument(supabase, document.file_path);
+  await supabase.from("medical_documents").delete().eq("id", documentId);
+
+  revalidatePath("/records");
+  return { error: null };
+}
