@@ -1,0 +1,70 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+export type AccountState = {
+  authUserId: string;
+  email: string;
+  /** public.users row id */
+  appUserId: string;
+  fullName: string | null;
+  profileImage: string | null;
+  role: string;
+  /** null until onboarding completes */
+  patientProfileId: string | null;
+};
+
+/**
+ * Returns the signed-in account, or redirects to /login.
+ *
+ * Every protected page and Server Action calls this. `proxy.ts` also gates
+ * routes, but Server Actions are POSTs to their host route — relying on the
+ * proxy alone would let a matcher change silently remove authorization.
+ */
+export async function requireUser(): Promise<AccountState> {
+  const state = await getAccountState();
+  if (!state) redirect("/login");
+  return state;
+}
+
+export async function getAccountState(): Promise<AccountState | null> {
+  const supabase = await createClient();
+
+  // getUser() re-validates the JWT with the auth server, unlike getSession().
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: appUser } = await supabase
+    .from("users")
+    .select("id, email, full_name, profile_image, role")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (!appUser) {
+    // The auth trigger provisions this row; a missing row means the account is
+    // mid-provision. Treat as signed out rather than rendering a broken shell.
+    return null;
+  }
+
+  const { data: profile } = await supabase
+    .from("patient_profiles")
+    .select("id")
+    .eq("user_id", appUser.id)
+    .maybeSingle();
+
+  return {
+    authUserId: user.id,
+    email: appUser.email,
+    appUserId: appUser.id,
+    fullName: appUser.full_name,
+    profileImage: appUser.profile_image,
+    role: appUser.role,
+    patientProfileId: profile?.id ?? null,
+  };
+}
+
+/** Where a signed-in patient belongs right now. */
+export function landingRouteFor(state: AccountState): string {
+  return state.patientProfileId ? "/dashboard" : "/onboarding";
+}
