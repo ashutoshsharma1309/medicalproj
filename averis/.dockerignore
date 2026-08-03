@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env*.local
+supabase/.branches
+supabase/.temp
+*.log
+.DS_Store
+README.md
+ARCHITECTURE.md
