@@ -6,6 +6,7 @@ import { Card, CardHeader, Chip, DataPoint, Callout, ButtonLink } from "@/compon
 import { HealthIdentityCard } from "@/components/health/HealthIdentityCard";
 import { averisId, calculateAge, formatDate, firstNameOf } from "@/lib/utils/format";
 import { bloodGroupLabel, genderLabel } from "@/lib/utils/constants";
+import { documentTypeLabel, STATUS_PRESENTATION } from "@/lib/services/documents/labels";
 
 export const metadata = { title: "Health dashboard" };
 
@@ -42,6 +43,14 @@ export default async function DashboardPage() {
     .select("allergies, existing_conditions, current_medications, medical_notes")
     .eq("patient_id", account.patientProfileId)
     .maybeSingle();
+
+  const { data: documentRows } = await supabase
+    .from("medical_documents")
+    .select("id, file_name, document_type, upload_status")
+    .eq("patient_id", account.patientProfileId)
+    .order("uploaded_at", { ascending: false })
+    .limit(5);
+  const documents = documentRows ?? [];
 
   if (!profile) redirect("/onboarding");
 
@@ -148,14 +157,47 @@ export default async function DashboardPage() {
 
       {/* --------------------------------------------------------- Documents */}
       <Card>
-        <CardHeader eyebrow="Section 3" title="Documents" />
-        <div className="px-6 py-8 text-center">
-          <p className="text-[15px] font-medium">No documents yet</p>
-          <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-ink-soft">
-            Uploading prescriptions and lab reports is coming in the next AVERIS release. Your
-            profile already carries everything you entered during onboarding.
-          </p>
-        </div>
+        <CardHeader
+          eyebrow="Section 3"
+          title="Documents"
+          action={
+            <Link href="/records" className="text-[13.5px] font-medium text-brand hover:underline">
+              Medical Records Center
+            </Link>
+          }
+        />
+        {documents.length === 0 ? (
+          <div className="px-6 py-8 text-center">
+            <p className="text-[15px] font-medium">No documents yet</p>
+            <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-ink-soft">
+              Upload a report or prescription and AVERIS will read it, then show you what it
+              found before anything is added to your profile.
+            </p>
+            <div className="mt-5">
+              <ButtonLink href="/records">Upload a document</ButtonLink>
+            </div>
+          </div>
+        ) : (
+          <ul className="divide-y divide-rule">
+            {documents.map((doc) => {
+              const status = STATUS_PRESENTATION[doc.upload_status];
+              return (
+                <li key={doc.id} className="flex items-center gap-4 px-6 py-3.5">
+                  <Link
+                    href={`/records/${doc.id}`}
+                    className="min-w-0 flex-1 truncate text-[14px] font-medium hover:text-brand"
+                  >
+                    {doc.file_name}
+                  </Link>
+                  <span className="hidden text-[12.5px] text-muted sm:block">
+                    {documentTypeLabel(doc.document_type)}
+                  </span>
+                  <Chip tone={status.tone}>{status.label}</Chip>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
 
       {/* ---------------------------------------------------- Health summary */}
