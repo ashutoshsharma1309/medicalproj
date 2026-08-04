@@ -1,0 +1,6 @@
+# Pinned so a retrain reproduces the committed artifacts.
+numpy==2.4.6
+pandas==3.0.5
+scikit-learn==1.9.0
+shap==0.52.0
+xgboost==3.4.0
