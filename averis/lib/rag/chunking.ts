@@ -37,15 +37,21 @@ const MIN_CHARS = 60;
 /** Trailing lines repeated into the next chunk, to preserve table headers. */
 const OVERLAP_LINES = 2;
 
-/** A single line longer than this is split on sentences. */
-const MAX_LINE_CHARS = 1200;
+/**
+ * Hard ceiling on an emitted chunk.
+ *
+ * MiniLM truncates at 256 tokens, so anything much past this loses its tail
+ * silently — and in a lab report the tail is where the numbers are. Nothing
+ * leaves this module larger than this.
+ */
+const MAX_CHUNK_CHARS = 1500;
 
 export function chunkText(raw: string, targetChars = TARGET_CHARS): Chunk[] {
   const lines = normalize(raw);
   if (lines.length === 0) return [];
 
   const units = lines.flatMap((line) =>
-    line.length > MAX_LINE_CHARS ? splitLongLine(line) : [line],
+    line.length > targetChars ? splitLongLine(line, targetChars) : [line],
   );
 
   const chunks: string[] = [];
@@ -56,7 +62,12 @@ export function chunkText(raw: string, targetChars = TARGET_CHARS): Chunk[] {
     // +1 for the newline that will rejoin them.
     if (size > 0 && size + unit.length + 1 > targetChars) {
       chunks.push(current.join("\n"));
-      current = current.slice(-OVERLAP_LINES);
+
+      // Overlap is capped by characters, not just by line count. Two whole
+      // trailing lines is cheap for a lab table and ruinous for prose: with
+      // long lines it compounds chunk over chunk, and the result grows past
+      // the embedding window where the tail is dropped without any error.
+      current = boundedOverlap(current, Math.floor(targetChars / 3));
       size = current.reduce((total, line) => total + line.length + 1, 0);
     }
     current.push(unit);
@@ -65,11 +76,28 @@ export function chunkText(raw: string, targetChars = TARGET_CHARS): Chunk[] {
 
   if (current.length > 0) chunks.push(current.join("\n"));
 
-  return mergeRunts(chunks).map((content, index) => ({
-    index,
-    content,
-    length: content.length,
-  }));
+  // A single unit can still exceed the target on its own, so the ceiling is
+  // enforced on the way out rather than assumed.
+  return mergeRunts(chunks)
+    .flatMap((content) =>
+      content.length > MAX_CHUNK_CHARS ? hardSplit(content, MAX_CHUNK_CHARS) : [content],
+    )
+    .map((content, index) => ({ index, content, length: content.length }));
+}
+
+/** Carries trailing lines forward, but never more than `budget` characters. */
+function boundedOverlap(lines: string[], budget: number): string[] {
+  const carried: string[] = [];
+  let used = 0;
+
+  for (let i = lines.length - 1; i >= 0 && carried.length < OVERLAP_LINES; i -= 1) {
+    const size = lines[i].length + 1;
+    if (used + size > budget) break;
+    carried.unshift(lines[i]);
+    used += size;
+  }
+
+  return carried;
 }
 
 /**
@@ -106,14 +134,14 @@ function mergeRunts(chunks: string[]): string[] {
 }
 
 /** Splits an over-long line on sentence boundaries, falling back to words. */
-function splitLongLine(line: string): string[] {
+function splitLongLine(line: string, budget: number): string[] {
   const sentences = line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [line];
 
   const pieces: string[] = [];
   let current = "";
 
   for (const sentence of sentences) {
-    if (current.length + sentence.length > MAX_LINE_CHARS && current.length > 0) {
+    if (current.length + sentence.length > budget && current.length > 0) {
       pieces.push(current.trim());
       current = "";
     }
@@ -123,7 +151,7 @@ function splitLongLine(line: string): string[] {
 
   // A single sentence longer than the cap still has to be broken somewhere.
   return pieces.flatMap((piece) =>
-    piece.length > MAX_LINE_CHARS ? hardSplit(piece, MAX_LINE_CHARS) : [piece],
+    piece.length > budget ? hardSplit(piece, budget) : [piece],
   );
 }
 
