@@ -67,6 +67,17 @@ export type PredictionType = "DIABETES" | "CARDIOVASCULAR";
 
 export type RiskCategoryEnum = "LOW" | "MODERATE" | "HIGH";
 
+/* ---------------------------- Phase 5: knowledge intelligence (RAG) */
+
+export type KnowledgeSourceType = "PATIENT_DOCUMENT" | "MEDICAL_KNOWLEDGE";
+
+export type KnowledgeCategoryEnum =
+  | "LAB_REFERENCE"
+  | "CONDITION"
+  | "MEDICATION"
+  | "PROCEDURE"
+  | "GENERAL_HEALTH";
+
 export type Database = {
   public: {
     Tables: {
@@ -373,6 +384,76 @@ export type Database = {
         Relationships: [];
       };
 
+      knowledge_documents: {
+        Row: {
+          id: string;
+          title: string;
+          category: KnowledgeCategoryEnum;
+          source_type: KnowledgeSourceType;
+          body: string;
+          citation: string;
+          created_at: string;
+        };
+        // Reference material, seeded through the SQL editor. No client role is
+        // granted insert, so there is nothing for the app to write.
+        Insert: Record<never, never>;
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      knowledge_embeddings: {
+        Row: {
+          id: string;
+          source_type: KnowledgeSourceType;
+          patient_id: string | null;
+          document_id: string | null;
+          knowledge_document_id: string | null;
+          chunk_index: number;
+          content: string;
+          // pgvector accepts and returns its text form over PostgREST.
+          embedding: string;
+          metadata: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_type: KnowledgeSourceType;
+          patient_id?: string | null;
+          document_id?: string | null;
+          knowledge_document_id?: string | null;
+          chunk_index: number;
+          content: string;
+          embedding: string;
+          metadata?: unknown;
+          created_at?: string;
+        };
+        // No UPDATE policy: a chunk's text and its vector must agree, and
+        // changing one without the other leaves the index quietly wrong.
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      ai_conversations: {
+        Row: {
+          id: string;
+          patient_id: string;
+          question: string;
+          response: string;
+          sources_used: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          question: string;
+          response: string;
+          sources_used?: unknown;
+          created_at?: string;
+        };
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
       health_predictions: {
         Row: {
           id: string;
@@ -453,7 +534,25 @@ export type Database = {
       };
     };
     Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Functions: {
+      match_knowledge: {
+        Args: {
+          query_embedding: string;
+          match_count?: number;
+          filter_source?: KnowledgeSourceType;
+        };
+        Returns: {
+          id: string;
+          source_type: KnowledgeSourceType;
+          document_id: string | null;
+          knowledge_document_id: string | null;
+          chunk_index: number;
+          content: string;
+          metadata: unknown;
+          similarity: number;
+        }[];
+      };
+    };
     Enums: {
       user_role: UserRole;
       gender_identity: GenderIdentity;
@@ -468,6 +567,8 @@ export type Database = {
       importance_level: ImportanceLevel;
       prediction_type: PredictionType;
       risk_category: RiskCategoryEnum;
+      knowledge_source_type: KnowledgeSourceType;
+      knowledge_category: KnowledgeCategoryEnum;
     };
     CompositeTypes: Record<never, never>;
   };
