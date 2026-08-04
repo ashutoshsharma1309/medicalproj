@@ -77,7 +77,11 @@ DIABETES_FEATURES: list[Feature] = [
 CARDIO_FEATURES: list[Feature] = [
     Feature("age", "Age", "years", (18, 110), True, True),
     Feature("sex", "Sex recorded at birth", None, (0, 1), None, True),
-    Feature("chest_pain_type", "Chest pain type", None, (0, 3), None, False),
+    # Cleveland encodes this 1-4 (typical angina, atypical angina,
+    # non-anginal pain, asymptomatic) — not 0-3. Declaring 0-3 made the
+    # API reject a legitimate value of 4 and put the imputed training mean
+    # outside its own plausible range.
+    Feature("chest_pain_type", "Chest pain type", None, (1, 4), None, False),
     Feature("resting_bp", "Resting systolic blood pressure", "mm Hg", (70, 260), True, True),
     Feature("cholesterol", "Serum cholesterol", "mg/dL", (80, 700), True, True),
     Feature("fasting_blood_sugar", "Fasting blood sugar over 120 mg/dL", None, (0, 1), True, True),
