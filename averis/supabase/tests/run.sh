@@ -57,4 +57,7 @@ run_sql "$ROOT/supabase/tests/phase3_rls_verification.sql"
 echo "▸ Running Phase 4 RLS assertions"
 run_sql "$ROOT/supabase/tests/phase4_rls_verification.sql"
 
+echo "▸ Running Phase 5 RLS assertions"
+run_sql "$ROOT/supabase/tests/phase5_rls_verification.sql"
+
 echo "▸ All checks passed."
