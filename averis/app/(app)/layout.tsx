@@ -25,6 +25,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Link href="/risk" className="hover:text-brand">
                   Risk Intelligence
                 </Link>
+                <Link href="/intelligence" className="hover:text-brand">
+                  Ask AVERIS
+                </Link>
                 <Link href="/records" className="hover:text-brand">
                   Medical records
                 </Link>
