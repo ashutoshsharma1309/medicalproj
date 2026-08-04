@@ -13,6 +13,7 @@ import {
 import type { MedicalExtraction } from "@/lib/services/documents/types";
 import { formatDate } from "@/lib/utils/format";
 import { ReprocessButton } from "./ReprocessButton";
+import { ExplainReport } from "./ExplainReport";
 
 export const metadata = { title: "Document" };
 export const dynamic = "force-dynamic";
@@ -250,6 +251,13 @@ export default async function DocumentPage(props: {
           )}
         </Card>
       </div>
+
+      {/* The explainer sits outside the confirmed-records block: a report is
+          worth explaining whether or not anything has been confirmed from it. */}
+      <Card>
+        <CardHeader eyebrow="Health Intelligence" title="Explain this report" />
+        <ExplainReport documentId={document.id} label={document.file_name} />
+      </Card>
 
       {records && records.length > 0 && (
         <Card>

@@ -283,3 +283,52 @@ export async function deleteDocumentAction(documentId: string): Promise<{ error:
   revalidatePath("/records");
   return { error: null };
 }
+
+/* ------------------------------------------------ report explanation (P5) */
+
+export type ExplainState = {
+  answer: import("@/lib/rag/types").GroundedAnswer | null;
+  error: string | null;
+};
+
+/**
+ * Explains one report.
+ *
+ * The document id arrives from the client, so ownership is re-established here
+ * before anything is read — the retrieval underneath is RLS-scoped, but a
+ * request for a document belonging to someone else should be refused outright
+ * rather than quietly returning an empty explanation.
+ */
+export async function explainReportAction(
+  _previous: ExplainState,
+  formData: FormData,
+): Promise<ExplainState> {
+  const documentId = String(formData.get("documentId") ?? "");
+  const label = String(formData.get("label") ?? "this report");
+
+  if (!documentId) return { answer: null, error: "Missing document." };
+
+  const account = await requireUser();
+  if (!account.patientProfileId) {
+    return { answer: null, error: "Complete your health profile first." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: document } = await supabase
+    .from("medical_documents")
+    .select("id")
+    .eq("id", documentId)
+    .eq("patient_id", account.patientProfileId)
+    .maybeSingle();
+
+  if (!document) return { answer: null, error: "That document is not in your records." };
+
+  try {
+    const { explainReport } = await import("@/lib/rag/rag-service");
+    const answer = await explainReport(supabase, account.patientProfileId, documentId, label);
+    return { answer, error: null };
+  } catch {
+    return { answer: null, error: "AVERIS could not read this report just now. Try again." };
+  }
+}
