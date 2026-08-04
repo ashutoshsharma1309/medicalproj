@@ -77,7 +77,7 @@ Eating shortly before the test, illness and some medications including corticost
 
 Major guidelines commonly describe metformin as a first-line medicine for type 2 diabetes alongside diet and physical activity. Common side effects are digestive and often settle with time or with a slower increase in dose. Kidney function is usually checked before starting and periodically afterwards.
 
-Decisions about starting, changing or stopping any medicine belong with the prescriber who knows the person's full history.`,
+Decisions about starting, changing or stopping any medicine belong with the doctor who knows the person's full history.`,
     citation: "National Institute for Health and Care Excellence (NICE) — Type 2 diabetes in adults: management",
   },
 
@@ -197,7 +197,7 @@ Management usually combines eating patterns, physical activity and, where approp
     category: "CONDITION",
     body: `Hypertension is persistently raised blood pressure. It usually causes no symptoms, which is why it is often found during routine measurement rather than because someone feels unwell. Over years, sustained high blood pressure increases the risk of stroke, heart disease and kidney disease.
 
-Diagnosis is based on repeated readings rather than a single measurement, and guidelines commonly recommend confirming clinic readings with measurements taken at home or over 24 hours, because blood pressure is often higher in a clinical setting.
+It is identified from repeated readings rather than a single measurement, and guidelines commonly describe confirming clinic readings with measurements taken at home or over 24 hours, because blood pressure is often higher in a clinical setting.
 
 Management may involve changes to diet, physical activity, alcohol and salt intake, and medicines where a clinician judges them appropriate.`,
     citation: "American College of Cardiology / American Heart Association — 2017 Guideline for High Blood Pressure in Adults",
