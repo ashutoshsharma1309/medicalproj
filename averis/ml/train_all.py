@@ -14,6 +14,7 @@ from datasets.loader import load_cleveland, load_pima
 from preprocessing.clean import clean_cleveland, clean_pima
 from models.train import train
 from prediction.export import build_artifact, write_artifact
+from prediction.metrics_sql import emit as emit_metrics_sql
 
 DATASETS = {
     "diabetes": {
@@ -82,9 +83,15 @@ def run_one(model: str, loader, cleaner) -> dict:
 
 
 def main() -> int:
-    run_one("diabetes", load_pima, clean_pima)
-    run_one("cardiovascular", load_cleveland, clean_cleveland)
-    print("\nDone. Artifacts written to lib/ml/artifacts/.\n")
+    artifacts = [
+        run_one("diabetes", load_pima, clean_pima),
+        run_one("cardiovascular", load_cleveland, clean_cleveland),
+    ]
+
+    seed = emit_metrics_sql(artifacts)
+    print(f"\nArtifacts written to lib/ml/artifacts/.")
+    print(f"Metrics seed written to {seed.relative_to(seed.parents[2])} "
+          f"— paste it into the Supabase SQL editor after the migration.\n")
     return 0
 
 
