@@ -35,7 +35,7 @@ export async function processDocument(
 ): Promise<ProcessingResult> {
   const { data: document, error: fetchError } = await supabase
     .from("medical_documents")
-    .select("id, file_path, mime_type, document_type, upload_status")
+    .select("id, patient_id, file_name, file_path, mime_type, document_type, upload_status")
     .eq("id", documentId)
     .maybeSingle();
 
@@ -93,6 +93,23 @@ export async function processDocument(
       .from("medical_documents")
       .update({ upload_status: "PENDING_REVIEW" })
       .eq("id", documentId);
+
+    // Index for retrieval, on the text that was just extracted rather than by
+    // re-reading the file. Best-effort and deliberately last: a failure here
+    // costs the patient search over this document, not the document itself,
+    // and the extraction they are about to review is already saved.
+    try {
+      const { indexPatientDocument } = await import("@/lib/rag/indexing-service");
+      await indexPatientDocument(supabase, {
+        patientProfileId: document.patient_id,
+        documentId,
+        text: extractedText.text,
+        fileName: document.file_name,
+        documentType: document.document_type,
+      });
+    } catch {
+      /* retrieval indexing is best-effort; /records can re-index on demand */
+    }
 
     return { ok: true, documentId, confidence };
   } catch (error) {
