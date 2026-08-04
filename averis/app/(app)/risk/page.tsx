@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { assessAllRisks } from "@/lib/ml/risk-service";
+import { assessAllRisks, listPredictions, persistPrediction } from "@/lib/ml/risk-service";
 import { loadArtifact } from "@/lib/ml/artifact";
 import { topContributions } from "@/lib/ml/predict";
 import { CATEGORY_LABEL } from "@/lib/ml/categories";
@@ -10,6 +10,7 @@ import { Card, CardHeader, Callout, ButtonLink } from "@/components/ui";
 import type { RiskModel } from "@/lib/ml/types";
 import { RiskGauge } from "./RiskGauge";
 import { ContributionChart } from "./ContributionChart";
+import { PredictionHistory } from "./PredictionHistory";
 
 export const metadata = { title: "Risk Intelligence" };
 export const dynamic = "force-dynamic";
@@ -26,6 +27,17 @@ export default async function RiskIntelligencePage() {
   const supabase = await createClient();
   const assessments = await assessAllRisks(supabase, account.patientProfileId);
   const models = Object.keys(assessments) as RiskModel[];
+
+  // Viewing the page records the assessment, so history accumulates without
+  // the patient having to press anything. Best-effort: a failed write must
+  // not cost them the page.
+  await Promise.all(
+    models.map((model) =>
+      persistPrediction(supabase, account.patientProfileId!, assessments[model]).catch(() => {}),
+    ),
+  );
+
+  const history = await listPredictions(supabase, account.patientProfileId).catch(() => []);
 
   const anyMeasured = models.some((m) =>
     assessments[m].prediction.inputs.some((i) => !i.imputed),
@@ -173,7 +185,21 @@ export default async function RiskIntelligencePage() {
         );
       })}
 
-      {/* ---------------------------------------------------- 4. next steps */}
+      {/* ------------------------------------------------------- 4. history */}
+      <Card>
+        <CardHeader
+          eyebrow="Over time"
+          title="Past assessments"
+          action={
+            <span className="mono text-[12.5px] text-muted">
+              {history.length} {history.length === 1 ? "record" : "records"}
+            </span>
+          }
+        />
+        <PredictionHistory predictions={history} />
+      </Card>
+
+      {/* ---------------------------------------------------- 5. next steps */}
       <Card>
         <CardHeader eyebrow="Improve these estimates" title="What would make these yours" />
         <div className="px-6 py-5">
