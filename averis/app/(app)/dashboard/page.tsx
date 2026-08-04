@@ -11,18 +11,24 @@ import { documentTypeLabel, STATUS_PRESENTATION } from "@/lib/services/documents
 export const metadata = { title: "Health dashboard" };
 
 /** Modules with structure in place, deliberately not simulated. */
-const FUTURE_MODULES = [
+// These three shipped in Phases 2, 3 and 4. They were "coming soon" cards
+// until the features existed; leaving them that way would have meant the
+// dashboard telling patients no analysis was running while it was.
+const MODULES = [
   {
     title: "Medical Records",
-    body: "Upload prescriptions, lab reports and discharge summaries. AVERIS will read them and propose profile updates for your approval.",
+    href: "/records",
+    body: "Upload prescriptions, lab reports and discharge summaries. AVERIS reads them and proposes profile updates for your approval.",
   },
   {
-    title: "Health Timeline",
-    body: "Your conditions, treatments and results arranged over time, so changes in your health are visible at a glance.",
+    title: "Health Twin",
+    href: "/twin",
+    body: "Your conditions, medications and results arranged over time, so changes in your health are visible at a glance.",
   },
   {
-    title: "Health Insights",
-    body: "Risk signals explained in plain language, always showing which parts of your record produced them.",
+    title: "Risk Intelligence",
+    href: "/risk",
+    body: "Two statistical models scored against your record, each showing exactly which inputs produced the estimate.",
   },
 ];
 
@@ -202,20 +208,25 @@ export default async function DashboardPage() {
 
       {/* ---------------------------------------------------- Health summary */}
       <Card>
-        <CardHeader eyebrow="Section 4" title="Health summary" />
+        <CardHeader eyebrow="Section 4" title="Where to go next" />
         <div className="grid gap-px bg-rule md:grid-cols-3">
-          {FUTURE_MODULES.map((m) => (
-            <div key={m.title} className="bg-surface px-6 py-5">
-              <Chip>Coming soon</Chip>
-              <h3 className="mt-3 text-[15.5px] font-semibold">{m.title}</h3>
+          {MODULES.map((m) => (
+            <Link
+              key={m.title}
+              href={m.href}
+              className="group bg-surface px-6 py-5 transition-colors hover:bg-wash"
+            >
+              <h3 className="text-[15.5px] font-semibold group-hover:text-brand">
+                {m.title} <span aria-hidden="true">→</span>
+              </h3>
               <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{m.body}</p>
-            </div>
+            </Link>
           ))}
         </div>
         <div className="border-t border-rule px-6 py-4">
           <p className="text-[13px] leading-relaxed text-muted">
-            AVERIS shows only information you provided. These modules are in development — no
-            analysis or prediction is being generated from your record yet.
+            AVERIS organizes information you provided and estimates risk from public research
+            models. It does not diagnose, and it does not replace a clinician.
           </p>
         </div>
       </Card>
