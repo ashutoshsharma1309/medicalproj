@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { buildDigitalTwin } from "@/lib/services/twin/digital-twin-service";
 import { generateHealthSummary } from "@/lib/services/twin/health-summary-service";
 import { groupByYear } from "@/lib/services/twin/timeline-service";
+import { assessAllRisks } from "@/lib/ml/risk-service";
+import { riskInsights } from "@/lib/ml/twin-integration";
 import { Card, CardHeader, Chip, Callout, ButtonLink, DataPoint } from "@/components/ui";
 import { formatDate } from "@/lib/utils/format";
 import { OverviewMeter } from "./OverviewMeter";
@@ -21,6 +23,13 @@ export default async function HealthTwinPage() {
   const supabase = await createClient();
   const twin = await buildDigitalTwin(supabase, account.patientProfileId);
   const summary = await generateHealthSummary(twin);
+
+  // Risk assessments render alongside the record-derived insights, but are
+  // computed separately: one is arithmetic over confirmed data, the other a
+  // statistical estimate from a public cohort. Sharing a code path would blur
+  // a distinction the patient needs.
+  const assessments = await assessAllRisks(supabase, account.patientProfileId);
+  const insights = [...riskInsights(Object.values(assessments)), ...twin.insights];
 
   const currentMedications = twin.medications.filter((m) => m.endDate === null);
   const pastMedications = twin.medications.filter((m) => m.endDate !== null);
@@ -182,11 +191,11 @@ export default async function HealthTwinPage() {
           title="Health insights"
           action={
             <span className="mono text-[12.5px] text-muted">
-              {twin.insights.length} {twin.insights.length === 1 ? "observation" : "observations"}
+              {insights.length} {insights.length === 1 ? "observation" : "observations"}
             </span>
           }
         />
-        <InsightList insights={twin.insights} />
+        <InsightList insights={insights} />
       </Card>
 
       {/* ----------------------------------------------- 4. Health records */}
