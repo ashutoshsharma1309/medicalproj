@@ -78,7 +78,14 @@ def build_artifact(run: TrainingRun, dataset: dict, cleaning: dict) -> dict:
     scaled_means = scaled_train.mean(axis=0).astype(float)
     base_value = float(intercept + float(np.dot(coefficients, scaled_means)))
 
-    explainer = shap.LinearExplainer(classifier, scaled_train)
+    # The full training set as background, not a subsample. LinearExplainer
+    # defaults to 100 rows, which makes its baseline a random subsample mean
+    # rather than the exact training mean — the reference would then disagree
+    # with the closed form by a small amount that looks like a TypeScript bug.
+    explainer = shap.LinearExplainer(
+        classifier,
+        shap.maskers.Independent(scaled_train, max_samples=len(scaled_train)),
+    )
     fixture_rows = run.x_test.iloc[:FIXTURE_ROWS]
     fixture_shap = explainer.shap_values(scaler.transform(fixture_rows))
     fixture_logits = pipeline.decision_function(fixture_rows)
