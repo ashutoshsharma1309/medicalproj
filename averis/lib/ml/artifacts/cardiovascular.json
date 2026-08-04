@@ -1,0 +1,528 @@
+{
+  "model": "cardiovascular",
+  "version": "v1",
+  "trained_at": "2026-08-04T16:22:34+00:00",
+  "algorithm": "logistic_regression",
+  "dataset": {
+    "name": "Cleveland Heart Disease",
+    "source": "UCI Machine Learning Repository",
+    "rows": 303,
+    "cohort": "Cleveland Clinic Foundation cardiac referrals, predominantly male",
+    "caveat": "A small referral cohort, so the base rate of disease is far higher than in the general population. Records neither BMI nor smoking."
+  },
+  "cleaning": {
+    "rows_with_missing": 6,
+    "null_counts": {
+      "major_vessels": 4,
+      "thalassemia": 2
+    }
+  },
+  "positive_rate": 0.4587,
+  "features": [
+    {
+      "name": "age",
+      "label": "Age",
+      "unit": "years",
+      "plausible": [
+        18,
+        110
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "sex",
+      "label": "Sex recorded at birth",
+      "unit": null,
+      "plausible": [
+        0,
+        1
+      ],
+      "higher_is_riskier": null,
+      "derivable": true
+    },
+    {
+      "name": "chest_pain_type",
+      "label": "Chest pain type",
+      "unit": null,
+      "plausible": [
+        0,
+        3
+      ],
+      "higher_is_riskier": null,
+      "derivable": false
+    },
+    {
+      "name": "resting_bp",
+      "label": "Resting systolic blood pressure",
+      "unit": "mm Hg",
+      "plausible": [
+        70,
+        260
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "cholesterol",
+      "label": "Serum cholesterol",
+      "unit": "mg/dL",
+      "plausible": [
+        80,
+        700
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "fasting_blood_sugar",
+      "label": "Fasting blood sugar over 120 mg/dL",
+      "unit": null,
+      "plausible": [
+        0,
+        1
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "max_heart_rate",
+      "label": "Maximum heart rate achieved",
+      "unit": "bpm",
+      "plausible": [
+        60,
+        230
+      ],
+      "higher_is_riskier": false,
+      "derivable": false
+    },
+    {
+      "name": "exercise_angina",
+      "label": "Chest pain brought on by exercise",
+      "unit": null,
+      "plausible": [
+        0,
+        1
+      ],
+      "higher_is_riskier": true,
+      "derivable": false
+    },
+    {
+      "name": "st_depression",
+      "label": "ST depression induced by exercise",
+      "unit": null,
+      "plausible": [
+        0,
+        7
+      ],
+      "higher_is_riskier": true,
+      "derivable": false
+    }
+  ],
+  "scaler": {
+    "mean": [
+      54.65289256,
+      0.68595041,
+      3.19008264,
+      131.34297521,
+      246.29338843,
+      0.14876033,
+      148.9214876,
+      0.33057851,
+      1.09545455
+    ],
+    "scale": [
+      8.88001819,
+      0.46413623,
+      0.95184944,
+      16.75276381,
+      54.60595771,
+      0.35585207,
+      22.61933535,
+      0.47042147,
+      1.20344718
+    ]
+  },
+  "coefficients": [
+    0.19905162,
+    0.73718807,
+    0.5873208,
+    0.19499461,
+    0.31440758,
+    -0.05418115,
+    -0.51183819,
+    0.55788728,
+    0.702832
+  ],
+  "intercept": -0.01885234,
+  "scaled_means": [
+    0.0,
+    -0.0,
+    -0.0,
+    -0.0,
+    -0.0,
+    -0.0,
+    -0.0,
+    -0.0,
+    0.0
+  ],
+  "base_value": -0.01885234,
+  "training_means": [
+    54.652893,
+    0.68595,
+    3.190083,
+    131.342975,
+    246.293388,
+    0.14876,
+    148.921488,
+    0.330579,
+    1.095455
+  ],
+  "direction_disagreements": [
+    "fasting_blood_sugar"
+  ],
+  "metrics": {
+    "logistic_regression": {
+      "accuracy": 0.8197,
+      "precision": 0.8148,
+      "recall": 0.7857,
+      "f1_score": 0.8,
+      "roc_auc": 0.9188,
+      "cv_roc_auc_mean": 0.85,
+      "cv_roc_auc_std": 0.0267
+    },
+    "random_forest": {
+      "accuracy": 0.7705,
+      "precision": 0.8182,
+      "recall": 0.6429,
+      "f1_score": 0.72,
+      "roc_auc": 0.8712,
+      "cv_roc_auc_mean": 0.8553,
+      "cv_roc_auc_std": 0.0224
+    },
+    "xgboost": {
+      "accuracy": 0.7869,
+      "precision": 0.8571,
+      "recall": 0.6429,
+      "f1_score": 0.7347,
+      "roc_auc": 0.8268,
+      "cv_roc_auc_mean": 0.8261,
+      "cv_roc_auc_std": 0.0288
+    }
+  },
+  "served_algorithm": "logistic_regression",
+  "fixtures": [
+    {
+      "input": {
+        "age": 42.0,
+        "sex": 1.0,
+        "chest_pain_type": 2.0,
+        "resting_bp": 120.0,
+        "cholesterol": 295.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 162.0,
+        "exercise_angina": 0.0,
+        "st_depression": 0.0
+      },
+      "shap": [
+        -0.31068129,
+        0.52413935,
+        -0.71575619,
+        -0.13629912,
+        0.2372194,
+        0.02283863,
+        -0.32607449,
+        -0.34391991,
+        -0.69147454
+      ],
+      "logit": -1.69467591,
+      "probability": 0.1551619
+    },
+    {
+      "input": {
+        "age": 41.0,
+        "sex": 0.0,
+        "chest_pain_type": 3.0,
+        "resting_bp": 112.0,
+        "cholesterol": 268.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 172.0,
+        "exercise_angina": 1.0,
+        "st_depression": 0.0
+      },
+      "shap": [
+        -0.33309696,
+        -1.06416171,
+        -0.09872499,
+        -0.2294155,
+        0.08176008,
+        0.02283863,
+        -0.55235797,
+        0.84201082,
+        -0.69147454
+      ],
+      "logit": -1.97728989,
+      "probability": 0.12160803
+    },
+    {
+      "input": {
+        "age": 70.0,
+        "sex": 1.0,
+        "chest_pain_type": 3.0,
+        "resting_bp": 160.0,
+        "cholesterol": 269.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 112.0,
+        "exercise_angina": 1.0,
+        "st_depression": 2.9
+      },
+      "shap": [
+        0.31695768,
+        0.52413935,
+        -0.09872499,
+        0.32928283,
+        0.08751784,
+        0.02283863,
+        0.8053429,
+        0.84201082,
+        1.00217087
+      ],
+      "logit": 3.87686818,
+      "probability": 0.97970483
+    },
+    {
+      "input": {
+        "age": 54.0,
+        "sex": 1.0,
+        "chest_pain_type": 4.0,
+        "resting_bp": 120.0,
+        "cholesterol": 188.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 113.0,
+        "exercise_angina": 0.0,
+        "st_depression": 1.4
+      },
+      "shap": [
+        -0.04169316,
+        0.52413935,
+        0.51830621,
+        -0.13629912,
+        -0.37886011,
+        0.02283863,
+        0.78271455,
+        -0.34391991,
+        0.12614738
+      ],
+      "logit": 1.11870608,
+      "probability": 0.75374863
+    },
+    {
+      "input": {
+        "age": 47.0,
+        "sex": 1.0,
+        "chest_pain_type": 4.0,
+        "resting_bp": 110.0,
+        "cholesterol": 275.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 118.0,
+        "exercise_angina": 1.0,
+        "st_depression": 1.0
+      },
+      "shap": [
+        -0.1986029,
+        0.52413935,
+        0.51830621,
+        -0.2526946,
+        0.12206435,
+        0.02283863,
+        0.66957281,
+        0.84201082,
+        -0.10745888
+      ],
+      "logit": 2.18550805,
+      "probability": 0.89894056
+    },
+    {
+      "input": {
+        "age": 71.0,
+        "sex": 0.0,
+        "chest_pain_type": 2.0,
+        "resting_bp": 160.0,
+        "cholesterol": 302.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 162.0,
+        "exercise_angina": 0.0,
+        "st_depression": 0.4
+      },
+      "shap": [
+        0.33937335,
+        -1.06416171,
+        -0.71575619,
+        0.32928283,
+        0.27752366,
+        0.02283863,
+        -0.32607449,
+        -0.34391991,
+        -0.45786828
+      ],
+      "logit": -1.89342986,
+      "probability": 0.13085389
+    },
+    {
+      "input": {
+        "age": 56.0,
+        "sex": 1.0,
+        "chest_pain_type": 2.0,
+        "resting_bp": 120.0,
+        "cholesterol": 240.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 169.0,
+        "exercise_angina": 0.0,
+        "st_depression": 0.0
+      },
+      "shap": [
+        0.00313819,
+        0.52413935,
+        -0.71575619,
+        -0.13629912,
+        -0.07945698,
+        0.02283863,
+        -0.48447293,
+        -0.34391991,
+        -0.69147454
+      ],
+      "logit": -1.85593125,
+      "probability": 0.135178
+    },
+    {
+      "input": {
+        "age": 57.0,
+        "sex": 1.0,
+        "chest_pain_type": 4.0,
+        "resting_bp": 165.0,
+        "cholesterol": 289.0,
+        "fasting_blood_sugar": 1.0,
+        "max_heart_rate": 124.0,
+        "exercise_angina": 0.0,
+        "st_depression": 1.0
+      },
+      "shap": [
+        0.02555387,
+        0.52413935,
+        0.51830621,
+        0.38748058,
+        0.20267288,
+        -0.12941888,
+        0.53380273,
+        -0.34391991,
+        -0.10745888
+      ],
+      "logit": 1.6564902,
+      "probability": 0.83976629
+    },
+    {
+      "input": {
+        "age": 56.0,
+        "sex": 1.0,
+        "chest_pain_type": 3.0,
+        "resting_bp": 130.0,
+        "cholesterol": 256.0,
+        "fasting_blood_sugar": 1.0,
+        "max_heart_rate": 142.0,
+        "exercise_angina": 1.0,
+        "st_depression": 0.6
+      },
+      "shap": [
+        0.00313819,
+        0.52413935,
+        -0.09872499,
+        -0.01990363,
+        0.01266706,
+        -0.12941888,
+        0.12649246,
+        0.84201082,
+        -0.34106515
+      ],
+      "logit": 0.9646675,
+      "probability": 0.72405534
+    },
+    {
+      "input": {
+        "age": 69.0,
+        "sex": 1.0,
+        "chest_pain_type": 3.0,
+        "resting_bp": 140.0,
+        "cholesterol": 254.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 146.0,
+        "exercise_angina": 0.0,
+        "st_depression": 2.0
+      },
+      "shap": [
+        0.294542,
+        0.52413935,
+        -0.09872499,
+        0.09649186,
+        0.00115155,
+        0.02283863,
+        0.03597907,
+        -0.34391991,
+        0.47655678
+      ],
+      "logit": 1.05438659,
+      "probability": 0.74161635
+    },
+    {
+      "input": {
+        "age": 57.0,
+        "sex": 0.0,
+        "chest_pain_type": 4.0,
+        "resting_bp": 120.0,
+        "cholesterol": 354.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 163.0,
+        "exercise_angina": 1.0,
+        "st_depression": 0.6
+      },
+      "shap": [
+        0.02555387,
+        -1.06416171,
+        0.51830621,
+        -0.13629912,
+        0.57692679,
+        0.02283863,
+        -0.34870284,
+        0.84201082,
+        -0.34106515
+      ],
+      "logit": 0.14073977,
+      "probability": 0.53512698
+    },
+    {
+      "input": {
+        "age": 69.0,
+        "sex": 0.0,
+        "chest_pain_type": 1.0,
+        "resting_bp": 140.0,
+        "cholesterol": 239.0,
+        "fasting_blood_sugar": 0.0,
+        "max_heart_rate": 151.0,
+        "exercise_angina": 0.0,
+        "st_depression": 1.8
+      },
+      "shap": [
+        0.294542,
+        -1.06416171,
+        -1.3327874,
+        0.09649186,
+        -0.08521474,
+        0.02283863,
+        -0.07716267,
+        -0.34391991,
+        0.35975365
+      ],
+      "logit": -2.08428803,
+      "probability": 0.11063335
+    }
+  ]
+}

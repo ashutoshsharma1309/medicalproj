@@ -1,0 +1,491 @@
+{
+  "model": "diabetes",
+  "version": "v1",
+  "trained_at": "2026-08-04T16:22:29+00:00",
+  "algorithm": "logistic_regression",
+  "dataset": {
+    "name": "Pima Indians Diabetes",
+    "source": "UCI Machine Learning Repository / NIDDK",
+    "rows": 768,
+    "cohort": "Women of Pima heritage, aged 21 and over",
+    "caveat": "Fitted on a single population. Does not transfer cleanly to men, to other ancestries, or to patients under 21."
+  },
+  "cleaning": {
+    "zeros_treated_as_missing": {
+      "glucose": 5,
+      "blood_pressure": 35,
+      "skin_thickness": 227,
+      "insulin": 374,
+      "bmi": 11
+    }
+  },
+  "positive_rate": 0.349,
+  "features": [
+    {
+      "name": "pregnancies",
+      "label": "Number of pregnancies",
+      "unit": null,
+      "plausible": [
+        0,
+        20
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "glucose",
+      "label": "Plasma glucose",
+      "unit": "mg/dL",
+      "plausible": [
+        40,
+        400
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "blood_pressure",
+      "label": "Diastolic blood pressure",
+      "unit": "mm Hg",
+      "plausible": [
+        30,
+        160
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "skin_thickness",
+      "label": "Triceps skinfold thickness",
+      "unit": "mm",
+      "plausible": [
+        5,
+        110
+      ],
+      "higher_is_riskier": true,
+      "derivable": false
+    },
+    {
+      "name": "insulin",
+      "label": "Serum insulin",
+      "unit": "mu U/mL",
+      "plausible": [
+        10,
+        900
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "bmi",
+      "label": "Body mass index",
+      "unit": "kg/m\u00b2",
+      "plausible": [
+        12,
+        70
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    },
+    {
+      "name": "diabetes_pedigree",
+      "label": "Family history score",
+      "unit": null,
+      "plausible": [
+        0.05,
+        2.5
+      ],
+      "higher_is_riskier": true,
+      "derivable": false
+    },
+    {
+      "name": "age",
+      "label": "Age",
+      "unit": "years",
+      "plausible": [
+        18,
+        110
+      ],
+      "higher_is_riskier": true,
+      "derivable": true
+    }
+  ],
+  "scaler": {
+    "mean": [
+      3.86156352,
+      121.29315961,
+      72.65960912,
+      29.25895765,
+      137.43159609,
+      32.61693811,
+      0.48364821,
+      33.18566775
+    ],
+    "scale": [
+      3.34625876,
+      30.33013872,
+      12.40467616,
+      8.85384638,
+      78.62632346,
+      6.97919475,
+      0.34153661,
+      11.84171076
+    ]
+  },
+  "coefficients": [
+    0.39468194,
+    1.2540359,
+    -0.09909926,
+    0.023785,
+    -0.08689289,
+    0.71986922,
+    0.35538755,
+    0.06382205
+  ],
+  "intercept": -0.25003788,
+  "scaled_means": [
+    -0.0,
+    -0.0,
+    0.0,
+    0.0,
+    -0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "base_value": -0.25003788,
+  "training_means": [
+    3.861564,
+    121.29316,
+    72.659609,
+    29.258958,
+    137.431596,
+    32.616938,
+    0.483648,
+    33.185668
+  ],
+  "direction_disagreements": [
+    "blood_pressure",
+    "insulin"
+  ],
+  "metrics": {
+    "logistic_regression": {
+      "accuracy": 0.7143,
+      "precision": 0.5926,
+      "recall": 0.5926,
+      "f1_score": 0.5926,
+      "roc_auc": 0.808,
+      "cv_roc_auc_mean": 0.8375,
+      "cv_roc_auc_std": 0.0365
+    },
+    "random_forest": {
+      "accuracy": 0.7338,
+      "precision": 0.597,
+      "recall": 0.7407,
+      "f1_score": 0.6612,
+      "roc_auc": 0.8063,
+      "cv_roc_auc_mean": 0.8404,
+      "cv_roc_auc_std": 0.042
+    },
+    "xgboost": {
+      "accuracy": 0.7208,
+      "precision": 0.5902,
+      "recall": 0.6667,
+      "f1_score": 0.6261,
+      "roc_auc": 0.7969,
+      "cv_roc_auc_mean": 0.8165,
+      "cv_roc_auc_std": 0.0493
+    }
+  },
+  "served_algorithm": "logistic_regression",
+  "fixtures": [
+    {
+      "input": {
+        "pregnancies": 1.0,
+        "glucose": 109.0,
+        "blood_pressure": 60.0,
+        "skin_thickness": 8.0,
+        "insulin": 182.0,
+        "bmi": 25.4,
+        "diabetes_pedigree": 0.947,
+        "age": 21.0
+      },
+      "shap": [
+        -0.38568743,
+        -0.35061575,
+        0.08795738,
+        -0.06111567,
+        -0.05247192,
+        -0.79112234,
+        0.43739719,
+        -0.06467517
+      ],
+      "logit": -1.42897941,
+      "probability": 0.19325775
+    },
+    {
+      "input": {
+        "pregnancies": 2.0,
+        "glucose": 91.0,
+        "blood_pressure": 62.0,
+        "skin_thickness": 29.0,
+        "insulin": 125.0,
+        "bmi": 27.3,
+        "diabetes_pedigree": 0.525,
+        "age": 22.0
+      },
+      "shap": [
+        -0.2677402,
+        -1.09484731,
+        0.07197966,
+        -0.00470121,
+        0.01052091,
+        -0.59514679,
+        -0.00171692,
+        -0.05928557
+      ],
+      "logit": -2.18958313,
+      "probability": 0.10068984
+    },
+    {
+      "input": {
+        "pregnancies": 0.0,
+        "glucose": 102.0,
+        "blood_pressure": 64.0,
+        "skin_thickness": 46.0,
+        "insulin": 78.0,
+        "bmi": 40.6,
+        "diabetes_pedigree": 0.496,
+        "age": 21.0
+      },
+      "shap": [
+        -0.50363465,
+        -0.64003913,
+        0.05600193,
+        0.04096765,
+        0.06246236,
+        0.77668204,
+        -0.031893,
+        -0.06467517
+      ],
+      "logit": -0.55277368,
+      "probability": 0.36522113
+    },
+    {
+      "input": {
+        "pregnancies": 17.0,
+        "glucose": 163.0,
+        "blood_pressure": 72.0,
+        "skin_thickness": 41.0,
+        "insulin": 114.0,
+        "bmi": 40.9,
+        "diabetes_pedigree": 0.817,
+        "age": 47.0
+      },
+      "shap": [
+        1.50146819,
+        1.8820789,
+        -0.00790897,
+        0.02753563,
+        0.02267742,
+        0.80762555,
+        0.30212507,
+        0.07545436
+      ],
+      "logit": 4.36241045,
+      "probability": 0.98741283
+    },
+    {
+      "input": {
+        "pregnancies": 1.0,
+        "glucose": 173.0,
+        "blood_pressure": 74.0,
+        "skin_thickness": 29.0,
+        "insulin": 125.0,
+        "bmi": 36.8,
+        "diabetes_pedigree": 0.088,
+        "age": 38.0
+      },
+      "shap": [
+        -0.38568743,
+        2.29554088,
+        -0.0238867,
+        -0.00470121,
+        0.01052091,
+        0.38473094,
+        -0.45643935,
+        0.02694799
+      ],
+      "logit": 1.59838033,
+      "probability": 0.83179189
+    },
+    {
+      "input": {
+        "pregnancies": 2.0,
+        "glucose": 92.0,
+        "blood_pressure": 62.0,
+        "skin_thickness": 28.0,
+        "insulin": 125.0,
+        "bmi": 31.6,
+        "diabetes_pedigree": 0.13,
+        "age": 24.0
+      },
+      "shap": [
+        -0.2677402,
+        -1.05350111,
+        0.07197966,
+        -0.00738761,
+        0.01052091,
+        -0.15162319,
+        -0.41273605,
+        -0.04850638
+      ],
+      "logit": -2.10763966,
+      "probability": 0.1083565
+    },
+    {
+      "input": {
+        "pregnancies": 7.0,
+        "glucose": 133.0,
+        "blood_pressure": 88.0,
+        "skin_thickness": 15.0,
+        "insulin": 155.0,
+        "bmi": 32.4,
+        "diabetes_pedigree": 0.262,
+        "age": 37.0
+      },
+      "shap": [
+        0.32199593,
+        0.64169298,
+        -0.13573079,
+        -0.04231085,
+        -0.02263321,
+        -0.06910717,
+        -0.27538282,
+        0.02155839
+      ],
+      "logit": 0.19143677,
+      "probability": 0.54771356
+    },
+    {
+      "input": {
+        "pregnancies": 3.0,
+        "glucose": 116.0,
+        "blood_pressure": 74.0,
+        "skin_thickness": 15.0,
+        "insulin": 105.0,
+        "bmi": 26.3,
+        "diabetes_pedigree": 0.107,
+        "age": 24.0
+      },
+      "shap": [
+        -0.14979298,
+        -0.06119237,
+        -0.0238867,
+        -0.04231085,
+        0.03262366,
+        -0.69829182,
+        -0.43666881,
+        -0.04850638
+      ],
+      "logit": -1.67667194,
+      "probability": 0.15753666
+    },
+    {
+      "input": {
+        "pregnancies": 6.0,
+        "glucose": 144.0,
+        "blood_pressure": 72.0,
+        "skin_thickness": 27.0,
+        "insulin": 228.0,
+        "bmi": 33.9,
+        "diabetes_pedigree": 0.255,
+        "age": 40.0
+      },
+      "shap": [
+        0.2040487,
+        1.09650115,
+        -0.00790897,
+        -0.01007401,
+        -0.10330824,
+        0.08561037,
+        -0.2826667,
+        0.03772718
+      ],
+      "logit": 0.77128378,
+      "probability": 0.68379854
+    },
+    {
+      "input": {
+        "pregnancies": 0.0,
+        "glucose": 84.0,
+        "blood_pressure": 82.0,
+        "skin_thickness": 31.0,
+        "insulin": 125.0,
+        "bmi": 38.2,
+        "diabetes_pedigree": 0.233,
+        "age": 23.0
+      },
+      "shap": [
+        -0.50363465,
+        -1.38427069,
+        -0.08779761,
+        0.0006716,
+        0.01052091,
+        0.52913398,
+        -0.30555891,
+        -0.05389597
+      ],
+      "logit": -2.04347704,
+      "probability": 0.11471315
+    },
+    {
+      "input": {
+        "pregnancies": 0.0,
+        "glucose": 126.0,
+        "blood_pressure": 86.0,
+        "skin_thickness": 27.0,
+        "insulin": 120.0,
+        "bmi": 27.4,
+        "diabetes_pedigree": 0.515,
+        "age": 21.0
+      },
+      "shap": [
+        -0.50363465,
+        0.3522696,
+        -0.11975306,
+        -0.01007401,
+        0.01604659,
+        -0.58483229,
+        -0.01212246,
+        -0.06467517
+      ],
+      "logit": -1.17542115,
+      "probability": 0.23587648
+    },
+    {
+      "input": {
+        "pregnancies": 6.0,
+        "glucose": 92.0,
+        "blood_pressure": 62.0,
+        "skin_thickness": 32.0,
+        "insulin": 126.0,
+        "bmi": 32.0,
+        "diabetes_pedigree": 0.085,
+        "age": 46.0
+      },
+      "shap": [
+        0.2040487,
+        -1.05350111,
+        0.07197966,
+        0.003358,
+        0.00941577,
+        -0.11036518,
+        -0.45956101,
+        0.07006477
+      ],
+      "logit": -1.51320609,
+      "probability": 0.18046414
+    }
+  ]
+}
