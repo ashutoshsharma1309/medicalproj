@@ -61,6 +61,12 @@ export type InsightType = "TREND" | "PATTERN" | "COMPLETENESS" | "REMINDER";
 
 export type ImportanceLevel = "LOW" | "MEDIUM" | "HIGH";
 
+/* ------------------------------------- Phase 4: ML risk intelligence */
+
+export type PredictionType = "DIABETES" | "CARDIOVASCULAR";
+
+export type RiskCategoryEnum = "LOW" | "MODERATE" | "HIGH";
+
 export type Database = {
   public: {
     Tables: {
@@ -367,6 +373,57 @@ export type Database = {
         Relationships: [];
       };
 
+      health_predictions: {
+        Row: {
+          id: string;
+          patient_id: string;
+          prediction_type: PredictionType;
+          risk_score: number;
+          risk_category: RiskCategoryEnum;
+          model_version: string;
+          explanation: unknown;
+          confidence_score: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          prediction_type: PredictionType;
+          risk_score: number;
+          risk_category: RiskCategoryEnum;
+          model_version: string;
+          explanation?: unknown;
+          confidence_score?: number | null;
+          created_at?: string;
+        };
+        // No Update shape: a prediction records what a model produced at a
+        // point in time, and there is no UPDATE policy for it either.
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      model_metrics: {
+        Row: {
+          id: string;
+          model_name: string;
+          model_version: string;
+          algorithm: string;
+          dataset: string;
+          accuracy: number | null;
+          precision: number | null;
+          recall: number | null;
+          f1_score: number | null;
+          roc_auc: number | null;
+          is_serving: boolean;
+          created_at: string;
+        };
+        // Written by the training pipeline through the SQL editor, never by
+        // the application — no client role is granted insert.
+        Insert: Record<never, never>;
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
       health_insights: {
         Row: {
           id: string;
@@ -409,6 +466,8 @@ export type Database = {
       condition_severity: ConditionSeverity;
       insight_type: InsightType;
       importance_level: ImportanceLevel;
+      prediction_type: PredictionType;
+      risk_category: RiskCategoryEnum;
     };
     CompositeTypes: Record<never, never>;
   };
