@@ -1,7 +1,7 @@
 {
   "model": "cardiovascular",
   "version": "v1",
-  "trained_at": "2026-08-04T16:38:19+00:00",
+  "trained_at": "2026-08-05T02:01:06+00:00",
   "algorithm": "logistic_regression",
   "dataset": {
     "name": "Cleveland Heart Disease",
