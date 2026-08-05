@@ -50,6 +50,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               {initialsOf(account.fullName ?? account.email)}
             </span>
+            <Link
+              href="/activity"
+              className="hidden text-[13.5px] text-ink-soft hover:text-brand sm:block"
+            >
+              Activity
+            </Link>
             <form action={signOutAction}>
               <button type="submit" className="btn btn-ghost">
                 Sign out
