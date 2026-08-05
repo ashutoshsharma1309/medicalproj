@@ -1,0 +1,98 @@
+# =============================================================================
+# AVERIS — ML pipeline
+#
+# Retrains both risk models and checks the result against what is committed.
+#
+# The point is not to retrain on every push — the datasets are static and the
+# seed is fixed, so a retrain should be a no-op. The point is that when the
+# artifacts *do* change, someone sees it. A model artifact is the one file in
+# this repository whose diff is unreadable, so a silent change to a
+# coefficient would otherwise reach patients unreviewed.
+# =============================================================================
+
+name: ML
+
+on:
+  push:
+    paths:
+      - "averis/ml/**"
+      - ".github/workflows/ml.yml"
+  pull_request:
+    paths:
+      - "averis/ml/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ml-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: averis/ml
+
+jobs:
+  train:
+    name: Train and verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: averis/ml/requirements.txt
+
+      - name: Install
+        run: |
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt mlflow-skinny
+
+      - name: Train
+        run: python train_all.py
+
+      # The training seed is fixed, so an artifact that changes means the
+      # pipeline changed. That is worth a human reading the diff rather than
+      # it landing quietly.
+      - name: Check artifacts against the committed versions
+        working-directory: averis
+        run: |
+          if git diff --quiet -- lib/ml/artifacts supabase/seed/model_metrics.sql; then
+            echo "Artifacts reproduce exactly."
+            exit 0
+          fi
+
+          echo "::warning::Retraining changed the committed artifacts."
+          git diff --stat -- lib/ml/artifacts supabase/seed/model_metrics.sql
+
+          # Show what actually moved, since the raw diff is a wall of floats.
+          python - <<'PY'
+          import json, subprocess
+          for model in ("diabetes", "cardiovascular"):
+              path = f"lib/ml/artifacts/{model}.json"
+              committed = json.loads(subprocess.run(
+                  ["git", "show", f"HEAD:averis/{path}"],
+                  capture_output=True, text=True, check=True).stdout)
+              current = json.load(open(path))
+              for family, metrics in current["metrics"].items():
+                  before = committed["metrics"].get(family, {}).get("roc_auc")
+                  after = metrics["roc_auc"]
+                  if before is not None and abs(before - after) > 1e-9:
+                      print(f"{model}/{family}: ROC-AUC {before} -> {after}")
+          PY
+
+          echo "::error::Commit the regenerated artifacts, or explain why they moved."
+          exit 1
+
+      # Retained so a run that did change something can be inspected without
+      # reproducing it locally.
+      - name: Upload MLflow runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-runs
+          path: averis/ml/mlruns
+          retention-days: 14
+          if-no-files-found: ignore

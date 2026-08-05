@@ -1,0 +1,140 @@
+# =============================================================================
+# AVERIS — continuous integration
+#
+# Runs on every push and pull request. Three jobs, deliberately ordered so the
+# cheap checks fail fast: type checking and unit tests take seconds, the RLS
+# suite needs a database, and the image build is the slowest of the three.
+#
+# The RLS job is the one that matters most. Every other check verifies that
+# AVERIS works; that one verifies that one patient cannot read another's
+# records — and it runs the *unmodified* production migrations to do it, so a
+# policy change that opens a hole fails here rather than in production.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push supersedes an in-flight run for the same ref. Without this, a
+# branch pushed three times runs three full builds and the first two are
+# already irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: averis
+
+jobs:
+  # ---------------------------------------------------------------- checks
+  verify:
+    name: Types and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: averis/package-lock.json
+
+      # --ignore-scripts: nothing in this tree needs a postinstall, and
+      # allowing them means any transitive dependency can execute code in CI.
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # Every suite runs without a database, a network or an API key. That is a
+      # property of the design, not of the runner, and asserting it here keeps
+      # it true.
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify no credentials are committed
+        working-directory: .
+        run: |
+          # Catches the shapes of the keys this project actually uses, rather
+          # than a generic high-entropy scan that fires on every hash.
+          if git grep -nE '(gsk_[A-Za-z0-9]{20,}|xai-[A-Za-z0-9]{20,}|sb_secret_|service_role.*eyJ)' -- ':!*.example' ':!.github/workflows/*'; then
+            echo "::error::A credential-shaped string is committed. Rotate it and remove it from history."
+            exit 1
+          fi
+          echo "No credential patterns found."
+
+  # ------------------------------------------------------------------- RLS
+  rls:
+    name: Row Level Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # pgvector, because Phase 5's retrieval function is part of the schema and
+    # a plain postgres image cannot apply the migration that defines it.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: averis
+          POSTGRES_PASSWORD: averis
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U averis"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Apply migrations and run assertions
+        env:
+          PGPASSWORD: averis
+          PGHOST: localhost
+          PG_MODE: psql
+          PG_USER: averis
+        # Calls the same script developers run locally. Reimplementing the
+        # sequence here would give CI its own copy of "which migrations, in
+        # what order, with which stubs" — and the copy that drifts is the one
+        # that stops catching the regression it exists for.
+        run: ./supabase/tests/run.sh
+
+  # ----------------------------------------------------------------- image
+  image:
+    name: Container build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [verify]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Built but not pushed. CI proves the image assembles; publishing is the
+      # deploy workflow's job and needs credentials this one does not have.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: averis
+          push: false
+          # Placeholders: these are inlined into the client bundle, and the
+          # real values belong to whichever environment is being deployed.
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder
+            NEXT_PUBLIC_SITE_URL=https://placeholder.invalid
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

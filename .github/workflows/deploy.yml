@@ -1,0 +1,172 @@
+# =============================================================================
+# AVERIS — deploy to Cloud Run
+#
+# Manual, and that is deliberate for a product holding health records. A push
+# to main that deploys itself means a mistaken merge reaches patients before
+# anyone reads it. The gate is a human choosing an environment.
+#
+# Authentication is Workload Identity Federation, not a service account key.
+# A JSON key committed to GitHub secrets is a long-lived credential with no
+# expiry that appears in every fork's secret scanner target list; WIF issues a
+# short-lived token scoped to this repository and this workflow.
+#
+# Required repository configuration:
+#   vars.GCP_PROJECT_ID           e.g. averis-prod
+#   vars.GCP_REGION               e.g. europe-west1
+#   vars.GCP_WIF_PROVIDER         projects/N/locations/global/workloadIdentityPools/P/providers/R
+#   vars.GCP_SERVICE_ACCOUNT      deployer@PROJECT.iam.gserviceaccount.com
+#   vars.NEXT_PUBLIC_SUPABASE_URL
+#   vars.NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   vars.NEXT_PUBLIC_SITE_URL
+#
+# Runtime secrets are NOT set here. They live in Secret Manager and are bound
+# to the service by reference, so no secret value ever passes through a
+# workflow log or an image layer. See docs/DEPLOYMENT.md.
+# =============================================================================
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [staging, production]
+        default: staging
+
+concurrency:
+  # Never two deploys to the same environment at once — the second would race
+  # the first's traffic migration.
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 40
+
+    permissions:
+      contents: read
+      # Required for Workload Identity Federation to mint a token.
+      id-token: write
+
+    env:
+      SERVICE: averis-web-${{ inputs.environment }}
+      WORKER_SERVICE: averis-worker-${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: averis
+          push: true
+          # Tagged with the commit SHA as well as the environment, so a
+          # rollback names an exact build rather than "whatever :staging was".
+          tags: |
+            ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/averis/web:${{ github.sha }}
+            ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/averis/web:${{ inputs.environment }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy web service
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/averis/web:${{ github.sha }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --cpu 2 \
+            --memory 2Gi \
+            --min-instances 0 \
+            --max-instances 10 \
+            --timeout 120 \
+            --set-env-vars "NODE_ENV=production,SERVICE_NAME=$SERVICE,LOG_LEVEL=info" \
+            --set-secrets "GROQ_API_KEY=averis-groq-api-key:latest,SUPABASE_URL=averis-supabase-url:latest,SUPABASE_ANON_KEY=averis-supabase-anon-key:latest,REDIS_URL=averis-redis-url:latest" \
+            --no-traffic \
+            --tag "sha-${GITHUB_SHA::7}"
+
+      # Verified before it receives traffic. The revision is deployed with
+      # --no-traffic and addressed by its tag URL, so a broken build never
+      # serves a patient.
+      - name: Verify the new revision
+        run: |
+          set -euo pipefail
+          URL=$(gcloud run services describe "$SERVICE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --format "value(status.traffic.filter(tag='sha-${GITHUB_SHA::7}').extract(url))" | head -n1)
+
+          echo "Probing $URL/api/health/ready"
+          for attempt in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/health/ready" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "Revision is ready."
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $code"
+            sleep 10
+          done
+
+          echo "::error::New revision never became ready; traffic not migrated."
+          exit 1
+
+      - name: Migrate traffic
+        run: |
+          gcloud run services update-traffic "$SERVICE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --to-latest
+
+      # The worker runs the same image with a different entrypoint, and is the
+      # only service given a key that bypasses RLS.
+      - name: Deploy worker
+        run: |
+          gcloud run deploy "$WORKER_SERVICE" \
+            --image "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/averis/web:${{ github.sha }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --command node \
+            --args "--experimental-strip-types,scripts/worker.ts" \
+            --cpu 2 \
+            --memory 2Gi \
+            --min-instances 1 \
+            --max-instances 3 \
+            --no-cpu-throttling \
+            --set-env-vars "NODE_ENV=production,SERVICE_NAME=$WORKER_SERVICE,LOG_LEVEL=info" \
+            --set-secrets "GROQ_API_KEY=averis-groq-api-key:latest,SUPABASE_URL=averis-supabase-url:latest,SUPABASE_SERVICE_ROLE_KEY=averis-supabase-service-role-key:latest,REDIS_URL=averis-redis-url:latest"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed to ${{ inputs.environment }}"
+            echo ""
+            echo "- commit: \`${GITHUB_SHA::7}\`"
+            echo "- web: \`$SERVICE\`"
+            echo "- worker: \`$WORKER_SERVICE\`"
+            echo ""
+            echo "Rollback: \`gcloud run services update-traffic $SERVICE --to-revisions <previous>=100\`"
+          } >> "$GITHUB_STEP_SUMMARY"
