@@ -2,3 +2,4 @@
 datasets/raw/
 __pycache__/
 *.pyc
+mlruns/

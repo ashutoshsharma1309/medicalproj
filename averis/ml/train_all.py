@@ -12,9 +12,10 @@ import sys
 
 from datasets.loader import load_cleveland, load_pima
 from preprocessing.clean import clean_cleveland, clean_pima
-from models.train import train
+from models.train import train, RANDOM_STATE
 from prediction.export import build_artifact, write_artifact
 from prediction.metrics_sql import emit as emit_metrics_sql
+from mlops.tracking import dataset_fingerprint, track_run
 
 DATASETS = {
     "diabetes": {
@@ -49,6 +50,7 @@ def run_one(model: str, loader, cleaner) -> dict:
     if cleaning:
         print(f"  cleaning: {cleaning}")
 
+    fingerprint = dataset_fingerprint(x)
     run = train(model, x, y)
 
     print(f"\n  {'family':<28} {'ROC-AUC':>8} {'recall':>8} {'prec':>8} {'F1':>8} {'acc':>8}")
@@ -63,6 +65,43 @@ def run_one(model: str, loader, cleaner) -> dict:
 
     artifact = build_artifact(run, DATASETS[model], cleaning)
     path = write_artifact(artifact)
+
+    # Tracked after the artifact is written, so a tracking failure can never
+    # cost the run its output.
+    with track_run(model, {"dataset": DATASETS[model]["name"]}) as tracked:
+        tracked.params(
+            {
+                "algorithm": run.served.name,
+                "model_version": artifact["version"],
+                "features": len(artifact["features"]),
+                "rows": len(x),
+                "positive_rate": round(run.positive_rate, 4),
+                "random_state": RANDOM_STATE,
+                # The fingerprint is what makes "accuracy dropped" separable
+                # from "accuracy dropped and the data changed".
+                "dataset_fingerprint": fingerprint,
+                "dataset_source": DATASETS[model]["source"],
+            }
+        )
+        # Every compared family, not only the one that shipped — a later run
+        # that flips the ranking is the signal worth catching.
+        for family in run.families:
+            tracked.metrics(family.metrics.to_dict(), prefix=f"{family.name}.")
+            tracked.metrics(
+                {"cv_roc_auc_mean": family.cv_roc_auc_mean,
+                 "cv_roc_auc_std": family.cv_roc_auc_std},
+                prefix=f"{family.name}.",
+            )
+        tracked.metrics(run.served.metrics.to_dict(), prefix="served.")
+        tracked.artifact_json(f"{model}-model-card.json", {
+            "model": model,
+            "version": artifact["version"],
+            "served_algorithm": artifact["served_algorithm"],
+            "dataset": artifact["dataset"],
+            "cleaning": artifact["cleaning"],
+            "direction_disagreements": artifact["direction_disagreements"],
+            "metrics": artifact["metrics"],
+        })
 
     best = max(run.families, key=lambda f: f.metrics.roc_auc)
     if best is not run.served:
