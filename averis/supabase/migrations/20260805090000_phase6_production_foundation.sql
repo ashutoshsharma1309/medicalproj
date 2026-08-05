@@ -113,8 +113,14 @@ create table public.notifications (
     check (char_length(btrim(body)) between 1 and 1000),
   -- An absolute URL here would turn a system notification into an open
   -- redirect that a patient has every reason to trust.
+  --
+  -- The negative lookahead is load-bearing: without it "//evil.example/x"
+  -- passes, because it starts with "/" and contains only allowed characters.
+  -- Browsers read a protocol-relative URL as an external origin, so that one
+  -- character is the whole difference between an internal link and an
+  -- off-site redirect.
   constraint notifications_href_is_relative
-    check (href is null or href ~ '^/[A-Za-z0-9/_?=&.-]*$')
+    check (href is null or href ~ '^/(?![/\\])[A-Za-z0-9/_?=&.-]*$')
 );
 
 comment on table public.notifications is
@@ -225,6 +231,22 @@ create trigger users_create_default_subscription
   for each row execute function private.create_default_subscription();
 
 -- ===========================================================================
+-- A note on identity, because this migration gets it wrong easily
+-- ===========================================================================
+--
+-- public.users.id and auth.users.id are DIFFERENT values: the application row
+-- carries its own gen_random_uuid() and links to auth via auth_user_id.
+--
+-- audit_logs.user_id references auth.users, so its policy compares against
+-- auth.uid() directly. subscriptions.user_id references public.users, so its
+-- policy must go through private.current_app_user_id() (defined in the Phase 1
+-- core schema).
+--
+-- Getting this backwards matches nothing, and matches nothing *silently* —
+-- which is how a premium subscriber ends up reading as FREE with no error
+-- anywhere in the stack.
+
+-- ===========================================================================
 -- Row Level Security
 -- ===========================================================================
 alter table public.audit_logs      enable row level security;
@@ -291,7 +313,7 @@ create policy "Patients enqueue their own documents"
 create policy "Users read own subscription"
   on public.subscriptions for select
   to authenticated
-  using ( user_id = (select auth.uid()) );
+  using ( user_id = private.current_app_user_id() );
 
 -- No INSERT, UPDATE or DELETE policy. Plan changes come from billing, which
 -- does not run as the user.
