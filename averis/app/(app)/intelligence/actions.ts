@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { askAveris } from "@/lib/rag/rag-service";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { rateLimitStore } from "@/lib/security/rate-limit-store";
+import { questionQuota } from "@/lib/plans/entitlements";
+import { recordAudit } from "@/lib/audit/audit-service";
 import type { GroundedAnswer } from "@/lib/rag/types";
 
 /**
@@ -35,9 +39,45 @@ export async function askAction(
     return { answer: null, error: "Complete your health profile first." };
   }
 
+  const limited = await checkRateLimit(
+    rateLimitStore(),
+    "askQuestion",
+    account.patientProfileId,
+  );
+  if (!limited.allowed) {
+    return {
+      answer: null,
+      error:
+        `You have asked a lot of questions in a short time. ` +
+        `Try again in about ${Math.ceil(limited.retryAfterMs / 60000)} minutes.`,
+    };
+  }
+
   try {
     const supabase = await createClient();
+
+    const quota = await questionQuota(supabase, account.appUserId, account.patientProfileId);
+    if (!quota.allowed) {
+      return { answer: null, error: quota.message ?? "Question limit reached." };
+    }
+
     const answer = await askAveris(supabase, account.patientProfileId, question);
+
+    // The question text is deliberately not recorded — only its length. A
+    // patient's questions are as sensitive as the records they ask about, and
+    // the audit table has different access rules from the conversation table
+    // that legitimately stores them.
+    await recordAudit(supabase, account.authUserId, {
+      action: "AI_QUESTION_ASKED",
+      resourceType: "CONVERSATION",
+      metadata: {
+        questionLength: question.length,
+        sourceCount: answer.sources.length,
+        abstained: answer.abstained,
+        guardrailTriggered: answer.guardrailTriggered,
+      },
+    });
+
     revalidatePath("/intelligence");
     return { answer, error: null };
   } catch (error) {

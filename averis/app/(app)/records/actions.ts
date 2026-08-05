@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { rateLimitStore } from "@/lib/security/rate-limit-store";
+import { documentQuota } from "@/lib/plans/entitlements";
+import { recordAudit } from "@/lib/audit/audit-service";
+import { invalidatePatient } from "@/lib/cache/cache";
 import {
   buildStoragePath,
   uploadDocument,
@@ -74,6 +79,26 @@ export async function uploadMedicalDocumentAction(
   }
 
   const supabase = await createClient();
+
+  // Rate limit before quota: the limiter protects against a loop hammering
+  // OCR, and evaluating it first means an abusive caller does not get to run
+  // a COUNT query per attempt.
+  const limited = await checkRateLimit(
+    rateLimitStore(),
+    "documentUpload",
+    account.patientProfileId,
+  );
+  if (!limited.allowed) {
+    return {
+      error:
+        `You have uploaded a lot of documents in a short time. ` +
+        `Try again in about ${Math.ceil(limited.retryAfterMs / 60000)} minutes.`,
+    };
+  }
+
+  const quota = await documentQuota(supabase, account.appUserId, account.patientProfileId);
+  if (!quota.allowed) return { error: quota.message ?? "Upload limit reached." };
+
   const storagePath = buildStoragePath(account.patientProfileId, validation.mimeType);
 
   try {
@@ -104,9 +129,30 @@ export async function uploadMedicalDocumentAction(
     return { error: "We could not record your upload. Please try again." };
   }
 
-  // Processed inline: uploads are small and the patient is waiting on the
-  // result. A queue worker is the Phase 3 move once volume justifies it.
+  await recordAudit(supabase, account.authUserId, {
+    action: "DOCUMENT_UPLOADED",
+    resourceType: "DOCUMENT",
+    resourceId: document.id,
+    metadata: { documentType, fileSize: file.size, mimeType: validation.mimeType },
+  });
+
+  // Enqueued for the worker, and also processed inline.
+  //
+  // The queue row is what makes async processing real: a worker container
+  // picks it up, and the exclusion constraint means the inline pass and the
+  // worker cannot both own the same document. Inline processing stays because
+  // a single-container deployment has no worker, and a patient waiting on an
+  // upload should not be told to come back later because of how the operator
+  // chose to deploy.
+  await supabase
+    .from("processing_jobs")
+    .insert({ patient_id: account.patientProfileId, document_id: document.id })
+    // A conflict means a job already exists for this document, which is the
+    // constraint doing its job rather than an error.
+    .then(() => undefined, () => undefined);
+
   const result = await processDocument(supabase, document.id);
+
 
   revalidatePath("/records");
   revalidatePath("/dashboard");
@@ -248,6 +294,16 @@ export async function confirmExtractionAction(
   } catch {
     /* twin refresh is best-effort; /twin rebuilds on demand */
   }
+
+  // Everything derived for this patient is now stale.
+  await invalidatePatient(account.patientProfileId);
+
+  await recordAudit(supabase, account.authUserId, {
+    action: "EXTRACTION_CONFIRMED",
+    resourceType: "DOCUMENT",
+    resourceId: documentId,
+    metadata: { recordCount: plan.confirmedCount },
+  });
 
   revalidatePath("/records");
   revalidatePath("/dashboard");
