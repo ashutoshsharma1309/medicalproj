@@ -1,0 +1,128 @@
+# =============================================================================
+# AVERIS — local development stack
+#
+# Brings up the pieces that are managed services in production, so the code
+# paths that only exist when Redis or a worker is present are exercised locally
+# rather than first discovered in staging.
+#
+# What this is NOT: a production topology. In production the database is
+# Supabase, the web tier is Cloud Run, and Redis is Memorystore. This file
+# stands those up locally so developers do not need cloud credentials to run
+# the parts of the system that depend on them.
+#
+#   docker compose up            # web + redis + worker
+#   docker compose --profile ml up mlflow   # add the MLflow UI
+#
+# Secrets come from .env, which is gitignored. See .env.example.
+# =============================================================================
+
+name: averis
+
+services:
+  web:
+    build:
+      context: .
+      target: runtime
+      args:
+        # Inlined into the client bundle at build time, so they must be
+        # arguments rather than runtime environment. Publishable by design.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:8080}
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    environment:
+      NODE_ENV: production
+      SERVICE_NAME: averis-web
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Server-side only. Never baked into an image layer.
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OCR_PROVIDER: ${OCR_PROVIDER:-tesseract}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  # Document processing, run as its own container against the same image.
+  #
+  # Separate from `web` because the two scale on different signals: web scales
+  # with concurrent readers, the worker with queue depth. Running OCR inside
+  # the request-serving container means one slow document adds latency to every
+  # page a patient loads.
+  worker:
+    build:
+      context: .
+      target: runtime
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    command: ["node", "--experimental-strip-types", "scripts/worker.ts"]
+    environment:
+      NODE_ENV: production
+      SERVICE_NAME: averis-worker
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SUPABASE_URL: ${SUPABASE_URL}
+      # The worker crosses patients by design, so it is the one component that
+      # needs a key which bypasses RLS. It is never given to `web`.
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OCR_PROVIDER: ${OCR_PROVIDER:-tesseract}
+      REDIS_URL: redis://redis:6379
+      WORKER_POLL_MS: ${WORKER_POLL_MS:-5000}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # Cache only — nothing here is a source of truth, so persistence is off and
+    # eviction is allowed. `allkeys-lru` means a full cache degrades to slower
+    # rather than starting to reject writes.
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - "256mb"
+      - --maxmemory-policy
+      - allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Opt-in: `docker compose --profile ml up mlflow`
+  mlflow:
+    profiles: ["ml"]
+    image: ghcr.io/mlflow/mlflow:v3.1.0
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlruns/mlflow.db
+      --default-artifact-root /mlruns/artifacts
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - ./ml/mlruns:/mlruns
+    restart: unless-stopped
