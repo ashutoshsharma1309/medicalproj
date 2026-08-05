@@ -2,249 +2,213 @@
 
 **Your intelligent healthcare journey starts here.**
 
-AVERIS is an AI-powered personalized healthcare intelligence platform. It helps patients
-organize their health information and create a personalized healthcare profile — a single,
-accurate health identity they own and control.
+AVERIS is a personal health record that reads a patient's own medical documents,
+assembles them into one picture, estimates statistical risk from public research
+models, and answers questions grounded in what it actually holds.
 
-This repository contains **Phase 1 (Patient Identity + Health Profile)** and
-**Phase 2 (Medical Document Intelligence)**.
+It does not diagnose, and it does not replace a clinician. Both are enforced in
+code rather than asserted in copy — see [Safety](#safety).
 
 ---
 
-## What Phase 1 delivers
+## What it does
 
-A patient can discover AVERIS, create an account, sign in securely, complete a guided health
-onboarding, and reach a private healthcare dashboard.
-
-| Capability | Status |
+| Phase | Capability |
 |---|---|
-| Premium healthcare landing page | ✅ |
-| Email + password authentication | ✅ |
-| Google OAuth authentication | ✅ (needs Google credentials configured) |
-| Supabase PostgreSQL backend with Row Level Security | ✅ |
-| Three-step patient onboarding | ✅ |
-| Patient profile management | ✅ |
-| Health dashboard foundation | ✅ |
-| Container + GCP Cloud Run deployment | ✅ |
+| **1** | Email/password and Google authentication, patient profile, RLS-backed Supabase schema |
+| **2** | Document upload → OCR → AI extraction → **patient review** → structured records |
+| **3** | Digital Twin: medical timeline, condition and medication history, health insights |
+| **4** | ML risk prediction (diabetes, cardiovascular) with exact SHAP explanations |
+| **5** | Retrieval-augmented Q&A over the patient's own records, with source attribution |
+| **6** | Audit trail, plan limits, rate limiting, caching, background worker, CI/CD, MLOps |
 
-## What Phase 2 delivers
+A patient uploads a blood report, confirms what AVERIS read from it, and then
+has a timeline, a risk estimate showing exactly which values drove it, and the
+ability to ask "what does my HbA1c mean?" — answered from that report plus a
+cited reference range.
 
-The Medical Records Center: a patient uploads a document, AVERIS reads it, and the patient
-verifies what it found before anything touches their health profile.
+## Architecture
+
+Two runtime services from one image, plus managed Postgres and Redis.
 
 ```
-Upload  →  Text extraction  →  Medical entity extraction  →  Review  →  Health profile
-(PDF/JPG/PNG)  (PDF layer / OCR)      (Grok, JSON contract)   (patient)   (additive merge)
+Browser ──▶ Next.js (Cloud Run) ──▶ Supabase (Postgres + pgvector + Auth + Storage)
+                 │                        ▲
+                 └──▶ Redis               │ service role
+                                    Worker (Cloud Run) ──▶ Groq / xAI
 ```
 
-| Capability | Status |
-|---|---|
-| Drag-and-drop upload with document categories | ✅ |
-| Private Supabase Storage, per-patient folders | ✅ |
-| PDF text extraction; OCR for images and scanned PDFs | ✅ |
-| Structured medical extraction via Grok, JSON-contract validated | ✅ |
-| Per-field confidence scoring with low-confidence flagging | ✅ |
-| Patient verification workflow (confirm / edit / reject) | ✅ |
-| Additive health-profile integration on confirmation | ✅ |
-| Document viewer with original + AVERIS summary | ✅ |
-
-**The rule that governs the whole phase:** an extraction never modifies a health profile.
-Items reach `patient_medical_records` and the profile only after an explicit `CONFIRM`
-decision — asserted directly in the test suite.
-
-**Still deliberately not built:** health timeline and predictive insights. The dashboard
-reserves labelled space for both rather than simulating them.
+ML inference and embeddings run **in-process**, not in sidecars. The reasoning —
+and the one case where it flipped — is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Tech stack
 
-- **Next.js 16** (App Router) · **TypeScript** · **Tailwind CSS v4**
-- **Supabase** — authentication, PostgreSQL, Row Level Security
-- **Google Cloud Platform** — Cloud Build → Artifact Registry → Cloud Run
-- **Grok (xAI)** — scaffolded in `lib/ai/grok.ts` for Phase 2
-
-Architecture, schema rationale and the auth flow are documented in
-[ARCHITECTURE.md](./ARCHITECTURE.md).
-
----
+- **Next.js 16** (App Router, Server Components, Server Actions) · TypeScript · Tailwind v4
+- **Supabase** — Postgres, Row Level Security, Auth, Storage, pgvector
+- **scikit-learn / XGBoost / SHAP** for training; logistic regression scored in TypeScript
+- **transformers.js** — `all-MiniLM-L6-v2` embeddings, 384 dimensions
+- **Groq** (or xAI) for phrasing only, never for computation
+- **MLflow** for experiment tracking · **Redis** for cache and rate limits
+- **Docker** · **GitHub Actions** · **GCP Cloud Run**
 
 ## Getting started
 
-### 1. Apply the schema
-
-Create a project at [supabase.com](https://supabase.com), then apply the schema. The simplest
-route needs no credentials beyond dashboard access — open the **SQL Editor** and paste the
-contents of [`supabase/apply-all.sql`](./supabase/apply-all.sql), which concatenates every
-migration in order.
-
-It creates 6 tables, 24 RLS policies, 7 helper functions in the non-exposed `private` schema,
-and the private `medical-documents` storage bucket.
-
-Alternatively, with the CLI:
-
 ```bash
-npx supabase link --project-ref <your-project-ref>
-npx supabase db push        # prompts for the database password
-```
-
-Regenerating `apply-all.sql` after adding a migration:
-
-```bash
-for m in supabase/migrations/*.sql; do echo "-- $(basename "$m")"; cat "$m"; echo; done \
-  > supabase/apply-all.sql
-```
-
-### 1b. Confirm it worked
-
-```bash
-./scripts/verify-remote.sh
-```
-
-Uses only the publishable key. Every table should report **"exists, anon denied"** — a `401`
-proves the table is there *and* that anonymous callers cannot read it. A `200` would mean RLS
-or grants are wrong, and `404` means the schema hasn't been applied.
-
-### 2. Configure environment
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from
-**Project Settings → API**.
-
-### 3. Enable Google OAuth (optional)
-
-Email/password works without this. Until Google is configured, the "Continue with Google"
-button will fail — the provider reports `google: false` in `/auth/v1/settings`, which
-`scripts/verify-remote.sh` prints on every run.
-
-1. **Google Cloud Console** → Credentials → OAuth 2.0 Client ID (Web application).
-2. Add this authorized redirect URI:
-   ```
-   https://<project-ref>.supabase.co/auth/v1/callback
-   ```
-3. **Supabase → Authentication → Providers → Google** — paste the client ID and secret.
-4. **Supabase → Authentication → URL Configuration → Redirect URLs** — add
-   `http://localhost:3100/auth/callback` (and your deployed origin).
-
-### 4. Email confirmation
-
-New projects require email confirmation by default (`mailer_autoconfirm: false`). Sign-up
-therefore returns *"check your inbox"* rather than an immediate session — the app handles this
-explicitly. To test the full flow without a mail round-trip, turn off **Confirm email** under
-**Authentication → Providers → Email**.
-
-### 4. Run
-
-```bash
+git clone <repo> && cd medicalproj/averis
 npm install
-npm run dev          # http://localhost:3100
+cp .env.example .env.local     # fill in the Supabase values
+npm run dev
 ```
 
-### Local Supabase (optional)
+### Database
+
+Paste these into the Supabase SQL editor, in order:
+
+1. `supabase/apply-all.sql` — the complete schema (19 tables, 58 RLS policies)
+2. `supabase/seed/model_metrics.sql` — ML model comparison data
+3. `supabase/seed/knowledge_base.sql` — medical reference corpus, embeddings included
+
+Both seeds are generated and idempotent: re-running updates rather than duplicates.
+
+> **pgvector** is required from Phase 5 onward. The migration enables it; on
+> Supabase the extension is available by default.
+
+After deploying, add `https://<your-domain>/auth/callback` to the Supabase
+redirect allowlist.
+
+### Optional
 
 ```bash
-npm run db:start     # requires Docker
-npm run db:reset     # applies migrations
-npm run types:gen    # regenerate lib/supabase/database.types.ts
+# Retrain the risk models (regenerates artifacts and the metrics seed)
+cd ml && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python train_all.py
+
+# Regenerate the knowledge corpus
+npx tsx scripts/seed-knowledge.mjs
+
+# Full local stack: web + worker + redis
+docker compose up
 ```
 
----
+> XGBoost needs OpenMP (`brew install libomp` on macOS). Without it the pipeline
+> substitutes scikit-learn's gradient boosting and records which one ran.
 
-## Security
-
-Health data is protected in the database, not just in the interface.
-
-- **Row Level Security on every table**, deny-by-default. Policies pair `TO authenticated` with
-  an ownership predicate — never role checks alone.
-- **`anon` has no privileges** on any application table.
-- **UPDATE policies carry `USING` *and* `WITH CHECK`**, so a record's owner cannot be reassigned.
-- **`SECURITY DEFINER` helpers live in a non-exposed `private` schema** with `EXECUTE` revoked
-  from `PUBLIC`, and resolve identity from `auth.uid()` internally.
-- **Authorization is re-checked in every Server Action and protected page.** `proxy.ts` is
-  defence in depth, not the only gate — Server Functions are POSTs to their host route, so a
-  matcher change must not be able to silently remove coverage.
-- **Secrets never reach the browser.** Only `NEXT_PUBLIC_*` values are shipped to the client;
-  `lib/ai/grok.ts` imports `server-only` so a client import fails the build.
-
-### Verifying the security model
-
-Two executable suites, both runnable offline:
+## Verification
 
 ```bash
-npm test                     # 32 pipeline tests (Grok stubbed, no network)
-./supabase/tests/run.sh      # 34 RLS assertions against real Postgres
+npm test                     # 236 tests — no database, no network, no API key
+npx tsc --noEmit             # type check
+npm run build                # production build
+
+# 119 RLS assertions against the unmodified production migrations
+PG_CONTAINER=<pg-container> PG_USER=postgres ./supabase/tests/run.sh
 ```
 
-`run.sh` applies the **unmodified production migrations** to a throwaway database and asserts
-that a patient cannot read or write another patient's profile, health information, documents,
-extractions or confirmed records; that ownership cannot be reassigned; and that anonymous
-callers are denied outright.
+Everything under `lib/` that decides something is pure or injectable, which is
+why the suite runs offline. The RLS suite applies the real migrations to a
+throwaway database and asserts one patient cannot reach another's data —
+including through a vector similarity search.
 
-`npm test` covers the pipeline logic that decides what reaches a health profile: the extraction
-contract, JSON recovery from imperfect model output, confidence scoring and low-confidence
-flagging, the no-diagnosis guardrail, upload validation including magic-byte checks, and the
-reconciliation rule that **nothing is written without an explicit confirmation**.
+## Safety
 
-## Phase 2 configuration
+The product rules are structural, not conventional.
+
+**Deterministic code decides; the language model phrases.** Risk probabilities
+come from a logistic regression, contributions from closed-form SHAP, lab
+trends from arithmetic over confirmed values. The LLM receives those numbers
+and is asked only to turn them into sentences — a model asked to *compute* a
+trend will invent one.
+
+**Every generated string passes an anti-diagnosis guard.** A trip replaces the
+output with deterministic text rather than showing it. This has caught real
+drift twice, including in this repository's own reference articles.
+
+**Nothing enters the health record without patient confirmation.** Extractions
+and confirmed records are separate tables for exactly this reason.
+
+**Authorization lives in RLS, not application code.** An application-layer check
+is a rule that must be remembered at every call site. `match_knowledge` is
+`SECURITY INVOKER`, so a similarity search cannot rank another patient's chunk
+— it cannot see it.
+
+**Audit logs are append-only, including to their subject.** A trail the audited
+party can delete is not evidence of anything.
+
+## Environment
+
+See [`.env.example`](.env.example). The essentials:
 
 | Variable | Purpose |
 |---|---|
-| `GROQ_API_KEY` | Groq key (`gsk_…`). Required for extraction. Server-only. |
-| `GROK_API_KEY` | Alias, for an xAI key (`xai-…`) instead. |
-| `AI_MODEL` / `AI_BASE_URL` | Optional overrides. |
-| `OCR_PROVIDER` | `tesseract` (default, no external dependency) or `google-vision`. |
-| `GOOGLE_CLOUD_VISION_API_KEY` | Required only when `OCR_PROVIDER=google-vision`. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_ANON_KEY` | Publishable key — safe in the browser *because* RLS protects the data |
+| `GROQ_API_KEY` | Phrasing only. Absent, AVERIS falls back to deterministic text |
+| `REDIS_URL` | Shared cache and rate limits. Unset ⇒ in-process, correct for one instance only |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Worker only.** Bypasses RLS entirely — never set it on the web service |
 
-> **Groq is not Grok.** Two different companies, near-identical names.
-> **Groq** (groq.com) is an inference provider serving open models; its keys start `gsk_`.
-> **Grok** (x.ai) is xAI's own model family; its keys start `xai-`. Both expose the same
-> OpenAI-compatible API, so `lib/ai/provider.ts` serves either and infers which from the key
-> prefix.
+Anything prefixed `NEXT_PUBLIC_` is inlined into the browser bundle. A secret
+with that prefix is a published secret.
 
-**Model choice on Groq.** The default is `openai/gpt-oss-120b`, chosen by comparing candidates
-on a real lab report. Llama 3.3 70B and Qwen 3.6 27B both returned a flat confidence of `1.0`
-for *every* field, which would make AVERIS's low-confidence review flagging purely decorative.
-gpt-oss-120b discriminates: `1.0` on a clean typed report, `0.70` overall on a degraded scan
-with the worst-damaged values dropping to `0.50`.
-
-Apply the Phase 2 migrations to your Supabase project (`npx supabase db push`). They create the
-three tables plus the private `medical-documents` storage bucket and its policies.
-
----
-
-## Deployment (GCP Cloud Run)
+## Deployment
 
 ```bash
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_REGION=asia-south1,\
-_SUPABASE_URL=https://<ref>.supabase.co,\
-_SUPABASE_ANON_KEY=<publishable-key>,\
-_SITE_URL=https://<your-domain>
+gh workflow run deploy.yml -f environment=staging
 ```
 
-`NEXT_PUBLIC_*` values are build args because Next.js inlines them into the client bundle.
-Server-only secrets (`GROK_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are bound at deploy time from
-**Secret Manager** so they never enter an image layer.
+Manual by design — a push that deploys itself means a mistaken merge reaches
+patients before anyone reads it. The workflow authenticates with Workload
+Identity Federation (no long-lived service-account key), deploys with
+`--no-traffic`, probes `/api/health/ready` on the tagged revision, and only then
+migrates traffic.
 
-After deploying, add `https://<your-domain>/auth/callback` to the Supabase redirect allowlist.
-
----
+Runtime secrets are bound from **Secret Manager** by reference, so no value
+passes through a workflow log or an image layer. `NEXT_PUBLIC_*` values are
+build args because Next.js inlines them into the client bundle.
 
 ## Project structure
 
 ```
-app/
-  page.tsx              landing page
-  (auth)/               login · signup · auth server actions
-  auth/callback/        OAuth PKCE exchange
-  (app)/                protected: onboarding · dashboard
-components/
-  brand/ ui/ marketing/ health/
-lib/
-  supabase/  auth/  validation/  ai/  utils/
-supabase/
-  migrations/           versioned schema
-  tests/                executable RLS verification
-proxy.ts                Next.js 16 route protection + token refresh
+averis/
+├── app/
+│   ├── (app)/                dashboard · records · twin · risk ·
+│   │                         intelligence · activity
+│   ├── (auth)/               login · signup · OAuth callback
+│   └── api/                  risk endpoint · health probes
+├── lib/
+│   ├── services/documents/   OCR · extraction · review · reconciliation
+│   ├── services/twin/        timeline · insights · overview      (pure)
+│   ├── ml/                   inference · SHAP · feature mapping  (pure)
+│   ├── rag/                  chunking · retrieval · grounded answers
+│   ├── audit/ plans/ cache/ jobs/ security/ observability/
+│   └── supabase/             browser · server · proxy clients
+├── ml/                       Python training pipeline + MLflow
+├── supabase/
+│   ├── migrations/           the source of truth for the schema
+│   ├── seed/                 generated: model metrics · knowledge corpus
+│   └── tests/                RLS assertions, one file per phase
+├── scripts/                  worker · seed generation · model prefetch
+├── docs/ARCHITECTURE.md
+└── proxy.ts                  Next.js 16 route protection + token refresh
 ```
+
+## Known gaps
+
+- **Google OAuth** is implemented but needs credentials configured in Supabase.
+- **Email confirmation** is on, so full signup testing needs it disabled or a real inbox.
+- **Payments** are deliberately absent. `subscriptions` and limit enforcement exist, so
+  adding a provider is a row write rather than a retrofit.
+- **Email and push notifications** are not stubbed — a channel that silently does nothing
+  is worse than an absent one, because the code reads as though patients are being told.
+- **Data drift detection** has its prerequisites (model registry, inference logging) but
+  no detector.
+
+## A note on the models
+
+The diabetes model is fitted on the Pima Indians dataset: 768 women of Pima
+heritage aged 21 and over. The cardiovascular model uses the Cleveland cohort:
+303 cardiac referrals, predominantly male, recording neither BMI nor smoking.
+
+Neither transfers cleanly to an arbitrary patient, and neither supports a claim
+about an individual's future. AVERIS presents both as awareness signals with the
+cohort and its caveat on the same screen as the number — because a risk
+percentage without its provenance is a claim the model cannot support.
