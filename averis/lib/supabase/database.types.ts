@@ -78,6 +78,33 @@ export type KnowledgeCategoryEnum =
   | "PROCEDURE"
   | "GENERAL_HEALTH";
 
+/* --------------------------- Phase 6: production foundation */
+
+export type AuditAction =
+  | "DOCUMENT_UPLOADED"
+  | "DOCUMENT_VIEWED"
+  | "DOCUMENT_DELETED"
+  | "EXTRACTION_CONFIRMED"
+  | "PROFILE_UPDATED"
+  | "HEALTH_SUMMARY_VIEWED"
+  | "RISK_PREDICTION_GENERATED"
+  | "AI_QUESTION_ASKED"
+  | "REPORT_EXPLAINED"
+  | "SIGNED_IN"
+  | "SIGNED_OUT";
+
+export type AuditResource =
+  | "DOCUMENT" | "PROFILE" | "PREDICTION" | "CONVERSATION" | "TWIN" | "SESSION";
+
+export type NotificationKind =
+  | "DOCUMENT_PROCESSED" | "DOCUMENT_FAILED" | "INSIGHT_GENERATED" | "PROFILE_UPDATED";
+
+export type JobStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "DEAD";
+
+export type SubscriptionPlan = "FREE" | "PREMIUM";
+
+export type SubscriptionState = "ACTIVE" | "PAST_DUE" | "CANCELLED";
+
 export type Database = {
   public: {
     Tables: {
@@ -384,6 +411,98 @@ export type Database = {
         Relationships: [];
       };
 
+      audit_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          action: AuditAction;
+          resource_type: AuditResource;
+          resource_id: string | null;
+          metadata: unknown;
+          ip_address: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          action: AuditAction;
+          resource_type: AuditResource;
+          resource_id?: string | null;
+          metadata?: unknown;
+          ip_address?: string | null;
+          created_at?: string;
+        };
+        // Append-only: no UPDATE or DELETE policy exists, and the type says so.
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      notifications: {
+        Row: {
+          id: string;
+          patient_id: string;
+          kind: NotificationKind;
+          title: string;
+          body: string;
+          href: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        // System-written. No client role is granted insert.
+        Insert: Record<never, never>;
+        // Dismissal is the one field a patient may change.
+        Update: { read_at?: string | null };
+        Relationships: [];
+      };
+
+      processing_jobs: {
+        Row: {
+          id: string;
+          patient_id: string;
+          document_id: string;
+          status: JobStatus;
+          attempts: number;
+          max_attempts: number;
+          run_after: string;
+          last_error: string | null;
+          claimed_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          document_id: string;
+          status?: JobStatus;
+          run_after?: string;
+        };
+        // Status transitions belong to the worker, which connects with
+        // elevated credentials rather than as a client role.
+        Update: {
+          status?: JobStatus;
+          run_after?: string;
+          last_error?: string | null;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
+
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          plan: SubscriptionPlan;
+          subscription_status: SubscriptionState;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        // Plan changes come from billing, which does not run as the user.
+        Insert: Record<never, never>;
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
       knowledge_documents: {
         Row: {
           id: string;
@@ -535,6 +654,15 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      claim_processing_job: {
+        Args: { worker_batch?: number };
+        Returns: {
+          job_id: string;
+          patient_id: string;
+          document_id: string;
+          attempts: number;
+        }[];
+      };
       match_knowledge: {
         Args: {
           query_embedding: string;
@@ -569,6 +697,12 @@ export type Database = {
       risk_category: RiskCategoryEnum;
       knowledge_source_type: KnowledgeSourceType;
       knowledge_category: KnowledgeCategoryEnum;
+      audit_action: AuditAction;
+      audit_resource: AuditResource;
+      notification_kind: NotificationKind;
+      job_status: JobStatus;
+      subscription_plan: SubscriptionPlan;
+      subscription_state: SubscriptionState;
     };
     CompositeTypes: Record<never, never>;
   };
