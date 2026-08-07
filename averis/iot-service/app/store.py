@@ -162,6 +162,76 @@ class Store:
             ],
         )
 
+    async def recent_readings(self, patient_id: str, since) -> list[dict]:
+        """Readings for one patient since a cutoff, oldest first."""
+        response = await self._client.get(
+            "/sensor_readings",
+            params={
+                "patient_id": f"eq.{patient_id}",
+                "recorded_at": f"gte.{since.isoformat()}",
+                "select": (
+                    "heart_rate,spo2,temperature,movement_status,recorded_at,"
+                    "accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z"
+                ),
+                "order": "recorded_at.asc",
+                # Bounded: six hours at 2 Hz is ~43k rows, and the engine's
+                # windows never need more than a few thousand.
+                "limit": "5000",
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def insert_prediction(self, patient_id: str, assessment: dict) -> None:
+        await self._client.post(
+            "/health_predictions",
+            json={
+                "patient_id": patient_id,
+                "prediction_type": "VITAL_DETERIORATION",
+                "risk_score": assessment["risk_score"],
+                "risk_category": assessment["risk_level"],
+                "model_version": assessment["model_version"],
+                "confidence_score": assessment["confidence"],
+                # Stored with the prediction rather than recomputed: a later
+                # engine version would produce different contributions, and the
+                # patient would have no way to see what they were actually
+                # shown at the time.
+                "explanation": {
+                    "contributions": assessment["contributions"],
+                    "explanation": assessment["explanation"],
+                    "anomalies": assessment["anomalies"],
+                    "fall": assessment["fall"],
+                    "data_quality": assessment["data_quality"],
+                    "engine_version": assessment["engine_version"],
+                    "disclaimer": assessment["disclaimer"],
+                },
+            },
+        )
+
+    async def insert_insights(
+        self, patient_id: str, device_id: str | None, insights: list[dict]
+    ) -> None:
+        if not insights:
+            return
+
+        await self._client.post(
+            "/ai_insights",
+            json=[
+                {
+                    "patient_id": patient_id,
+                    "device_id": device_id,
+                    "insight_type": i["insight_type"],
+                    "message": i["message"],
+                    "severity": i["severity"],
+                    "evidence": i["evidence"],
+                    "confidence": i["confidence"],
+                    "window_start": i["window_start"],
+                    "window_end": i["window_end"],
+                }
+                for i in insights
+            ],
+        )
+
     async def ping(self) -> bool:
         """Readiness probe. A trivial query, not a connection check.
 

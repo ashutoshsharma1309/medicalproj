@@ -31,6 +31,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings, load_settings
 from .hub import ConnectionHub
+from .services.intelligence_service import IntelligenceService
 from .services.sensor_processing_service import (
     ProcessingError,
     SensorProcessingService,
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
     _state["settings"] = settings
     _state["store"] = Store(settings)
     _state["processing"] = SensorProcessingService(_state["store"])
+    _state["intelligence"] = IntelligenceService(_state["store"])
     logger.info("iot service started")
     yield
     await _state["store"].aclose()
@@ -162,6 +164,58 @@ async def ingest(request: Request, authorization: str | None = Header(default=No
         },
         status_code=201,
     )
+
+
+# ---------------------------------------------------------------------- AI
+@app.post("/api/ai/predict")
+async def ai_predict(request: Request, authorization: str | None = Header(default=None)):
+    """Risk assessment for the authenticated device's patient.
+
+    Authenticated by the same device token as ingestion, and the patient is
+    resolved from the device row — never accepted from the body. A prediction
+    endpoint that took a patient id would let one device credential read any
+    patient's risk assessment, which is a worse leak than the readings
+    themselves because it is already summarised.
+
+    The body may carry a `history` array, as the brief specifies, but it is
+    used only when the caller has no stored history — a caller cannot inject
+    readings that were never measured and have them treated as the record.
+    """
+    store: Store = _state["store"]
+    intelligence: IntelligenceService = _state["intelligence"]
+
+    token = _bearer(authorization)
+    if not token:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    device = await store.resolve_device(token)
+    if device is None:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    if not _within_rate_limit(
+        f"ai:{device.device_id}", 30, time.monotonic()
+    ):
+        return JSONResponse({"error": "rate_limited"}, status_code=429, headers={"Retry-After": "60"})
+
+    assessment = await intelligence.assess_and_store(device.patient_id, device.device_id)
+
+    return JSONResponse(assessment.to_dict(), status_code=200)
+
+
+@app.get("/api/ai/model-card")
+async def ai_model_card():
+    """Provenance for the fall model, including its synthetic-data caveat.
+
+    Public because it describes the model, never a patient — and a model whose
+    limitations are only visible to people with database access is a model
+    whose limitations are effectively hidden.
+    """
+    from ai_engine.models.fall_detector import model_card
+
+    card = model_card()
+    if card is None:
+        return JSONResponse({"error": "no_model"}, status_code=404)
+    return card
 
 
 # --------------------------------------------------------------- websocket
