@@ -1,4 +1,4 @@
-You are a Senior IoT Engineer, Real-Time Systems Architect, Backend Engineer, and Healthcare Platform Developer with 10+ years of experience building IoT-based medical monitoring systems.
+You are a Senior Machine Learning Engineer, Healthcare AI Researcher, Data Scientist, and MedTech Product Architect with 10+ years of experience building AI-powered remote patient monitoring systems.
 
 You are continuing development of:
 
@@ -16,582 +16,314 @@ Completed:
 PHASE 1:
 
 ✓ Patient authentication
-
-✓ Device management system
-
-✓ IoT-ready database architecture
-
-✓ Sensor data APIs
-
-✓ Sensor simulator service
-
-✓ Real-time architecture foundation
+✓ IoT device management
+✓ Sensor database architecture
+✓ Device communication foundation
 
 
-The current system is ready to receive sensor data.
+PHASE 2:
+
+✓ Real-time sensor streaming
+✓ Live health dashboard
+✓ Sensor simulator
+✓ Real-time graphs
+✓ Device monitoring
+✓ Rule-based alerts
+
 
 Now implement:
 
-# PHASE 2: REAL-TIME HEALTH MONITORING SYSTEM
+# PHASE 3: AI HEALTH INTELLIGENCE AND EARLY RISK DETECTION ENGINE
 
 
 ==================================================
 PHASE OBJECTIVE
 ==================================================
 
-Transform AVERIS from an IoT-ready platform into a real-time patient monitoring system.
+Transform AVERIS from a monitoring system into an intelligent healthcare prediction system.
 
 
-The system should continuously receive health data from:
+The system should analyze:
 
-Current:
-
-Sensor Simulator
-
-
-Future:
-
-ESP32 wearable device
-
-
-and display:
-
-- Live patient vitals
-- Real-time graphs
+- Real-time sensor data
+- Historical patient data
 - Health trends
-- Device status
+- Abnormal patterns
+
+
+and generate:
+
+- Risk scores
+- Early warnings
+- Explainable health insights
 
 
 ==================================================
-IMPORTANT RULE
+IMPORTANT HEALTHCARE RULE
 ==================================================
 
-Do not create fake dashboard numbers.
+AVERIS is NOT a diagnostic system.
 
-All displayed health values must come from:
+It should not:
 
-
-Sensor Simulator
-
-OR
-
-Future ESP32 device
+- Diagnose diseases
+- Replace doctors
+- Give medical prescriptions
 
 
-The simulator should behave exactly like a real wearable device.
+It should:
+
+- Detect abnormal patterns
+- Provide risk indicators
+- Support healthcare professionals
+
+
+Every AI output must include:
+
+- Risk level
+- Confidence score
+- Explanation
 
 
 ==================================================
-SYSTEM ARCHITECTURE
+AI SYSTEM ARCHITECTURE
 ==================================================
 
 
 Implement:
 
 
-Sensor Simulator / ESP32
-
-        |
-
-        |
-
-FastAPI Data Ingestion Layer
-
-        |
-
-        |
-
-Database Storage
-
-        |
-
-        |
-
-Real-Time Communication Layer
-
-        |
-
-        |
-
-React Healthcare Dashboard
-
-
-
-==================================================
-1. IMPROVE SENSOR SIMULATOR
-==================================================
-
-
-Upgrade the existing simulator.
-
-
-The simulator should behave like an actual wearable.
-
-
-Generate:
-
-
-Heart Rate:
-
-Realistic range:
-
-60-100 BPM
-
-
-SpO2:
-
-95-100%
-
-
-Temperature:
-
-36-37.5°C
-
-
-Movement:
-
-- Resting
-- Walking
-- Running
-- Fall event
-
-
-==================================================
-SIMULATION MODES
-==================================================
-
-
-Create:
-
-
-Normal Mode
-
-
-Example:
-
-Heart Rate:
-78 BPM
-
-SpO2:
-98%
-
-Temperature:
-36.7°C
-
-
-
---------------------------------
-
-
-Abnormal Mode
-
-
-Simulate:
-
-
-High Heart Rate:
-
-150 BPM
-
-
-Low SpO2:
-
-88%
-
-
-High Temperature:
-
-39°C
-
-
-Fall Detection:
-
-
-Sudden acceleration event
-
-
-
-This will help test future AI alerts.
-
-
-==================================================
-2. IMPLEMENT REAL-TIME DATA STREAMING
-==================================================
-
-
-Implement WebSocket communication.
-
-
-Architecture:
-
-
 Sensor Data
 
 ↓
 
-FastAPI WebSocket Server
+Data Processing Layer
 
 ↓
 
-React Dashboard
+Feature Extraction
 
+↓
 
-Requirements:
+ML Models
 
+↓
 
-- Persistent connection
-- Automatic reconnect
-- Error handling
-- Connection status display
+Risk Engine
 
+↓
 
+Explainable AI
 
-==================================================
-3. CREATE LIVE VITAL MONITORING DASHBOARD
-==================================================
+↓
 
-
-Create:
-
-
-# AVERIS Live Monitoring Center
-
-
-
-Display:
-
-
-## Heart Rate Card
-
-
-Show:
-
-
-Current value
-
-Status:
-
-Normal / Warning / Critical
-
-
-
-Example:
-
-
-❤️ Heart Rate
-
-82 BPM
-
-Normal
-
-
-
---------------------------------
-
-
-## SpO2 Card
-
-
-Example:
-
-
-🫁 Oxygen Level
-
-97%
-
-Normal
-
-
-
---------------------------------
-
-
-## Temperature Card
-
-
-Example:
-
-
-🌡 Temperature
-
-36.8°C
-
-Normal
-
-
-
---------------------------------
-
-
-## Movement Card
-
-
-Example:
-
-
-🚶 Activity
-
-Walking
+Dashboard Insights
 
 
 
 ==================================================
-4. REAL-TIME GRAPH VISUALIZATION
-==================================================
-
-
-Add live charts.
-
-
-Charts:
-
-
-Heart Rate Timeline
-
-
-Display:
-
-Last 1 minute
-
-Last 10 minutes
-
-Last 1 hour
-
-
-
-SpO2 Timeline
-
-
-Temperature Timeline
-
-
-
-Requirements:
-
-
-- Smooth updates
-- No page refresh
-- Time-based plotting
-
-
-
-==================================================
-5. DEVICE CONNECTION STATUS
-==================================================
-
-
-Add:
-
-
-Device Health Panel
-
-
-Display:
-
-
-Device ID:
-
-AVR001
-
-
-Connection:
-
-Connected
-
-
-Last Data Received:
-
-2 seconds ago
-
-
-Battery:
-
-85%
-
-
-
-Future compatible with ESP32.
-
-
-
-==================================================
-6. BACKEND DATA PIPELINE IMPROVEMENT
-==================================================
-
-
-Improve data ingestion.
-
-
-When sensor data arrives:
-
-
-Validate:
-
-
-- Device exists
-- Patient exists
-- Values are within range
-
-
-Store:
-
-
-- Raw sensor data
-- Timestamp
-- Device information
-
-
-
-Add:
-
-
-Data processing service:
-
-
-services/
-
-
-sensor_processing_service
-
-
-
-Responsibilities:
-
-
-- Validation
-- Formatting
-- Data normalization
-
-
-
-==================================================
-7. ADD PATIENT HEALTH HISTORY
+1. CREATE HEALTH DATA PROCESSING PIPELINE
 ==================================================
 
 
 Create:
 
 
-# Health History
+ai_engine/
 
 
-Display:
+    preprocessing/
 
 
-Previous readings:
+    feature_engineering/
 
 
-Example:
+    models/
 
 
-Today:
+    prediction/
 
 
-10:00 AM
-
-Heart Rate:
-82
-
-
-10:05 AM
-
-Heart Rate:
-85
-
-
-10:10 AM
-
-SpO2:
-97
+    explanation/
 
 
 
-Allow filtering:
+The pipeline should:
 
 
-- Last hour
-- Today
-- This week
+Receive:
+
+
+Heart Rate
+
+SpO2
+
+Temperature
+
+Movement
+
+Timestamp
+
+
+
+Perform:
+
+
+- Data cleaning
+- Missing value handling
+- Normalization
+- Feature extraction
 
 
 
 ==================================================
-8. CREATE ALERT FOUNDATION
+2. FEATURE ENGINEERING
 ==================================================
 
 
-Do not implement AI prediction yet.
-
-
-Only create rule-based alerts.
+Create meaningful healthcare features.
 
 
 Examples:
 
 
-Heart Rate:
+Heart Rate Features:
 
-If >120 BPM
-
-
-Generate:
-
-
-High heart rate detected
+- Current heart rate
+- Average heart rate
+- Maximum heart rate
+- Heart rate variation
 
 
+SpO2 Features:
 
-SpO2:
-
-If <90%
-
-
-Generate:
+- Current oxygen level
+- Oxygen trend
+- Oxygen decrease rate
 
 
-Low oxygen level detected
+Temperature Features:
+
+- Current temperature
+- Temperature change trend
 
 
+Movement Features:
 
-Temperature:
-
-If >38°C
-
-
-Generate:
-
-
-High temperature detected
-
-
-
-Movement:
-
-If fall detected
-
-
-Generate:
-
-
-Possible fall detected
+- Activity level
+- Sudden movement
+- Fall pattern
 
 
 
 ==================================================
-9. ALERT DASHBOARD
+3. IMPLEMENT ANOMALY DETECTION MODEL
+==================================================
+
+
+Purpose:
+
+Detect unusual patient patterns.
+
+
+Use:
+
+
+Isolation Forest
+
+
+or
+
+
+Autoencoder
+
+
+
+Input:
+
+
+Historical sensor patterns
+
+
+
+Output:
+
+
+Normal:
+
+or
+
+
+Abnormal
+
+
+
+Example:
+
+
+Normal pattern:
+
+Heart rate:
+70-90 BPM
+
+
+Detected:
+
+
+Heart rate:
+150 BPM
+
+
+Output:
+
+
+{
+"status":"abnormal",
+"confidence":0.91
+}
+
+
+
+==================================================
+4. CREATE HEALTH RISK SCORING ENGINE
 ==================================================
 
 
 Create:
 
 
-# Health Alerts
+AVERIS Risk Engine
 
 
-Display:
+
+Output:
 
 
-Alert severity:
+Example:
+
+
+Health Risk Score:
+
+78%
+
+
+Risk Level:
+
+HIGH
+
+
+
+Based on:
+
+
+- Heart rate abnormality
+- SpO2 decrease
+- Temperature increase
+- Movement abnormality
+
+
+
+Risk categories:
 
 
 LOW
@@ -604,155 +336,456 @@ CRITICAL
 
 
 
-Example:
+==================================================
+5. IMPLEMENT FALL DETECTION MODEL
+==================================================
 
 
-CRITICAL
+Use MPU6050 simulated movement data.
 
 
-Patient:
-
-Rahul
+Classify:
 
 
-Issue:
+Normal:
 
-Low SpO2 detected
+- Standing
+- Walking
+- Sitting
 
 
-Time:
+Abnormal:
 
-10:45 AM
+- Fall event
+
+
+
+Model options:
+
+
+- Random Forest
+
+or
+
+- Decision Tree
+
+
+
+Input:
+
+
+Acceleration
+
+Gyroscope values
+
+
+
+Output:
+
+
+Fall detected:
+
+YES/NO
 
 
 
 ==================================================
-10. UI/UX REQUIREMENTS
+6. ADD PREDICTIVE HEALTH TREND ANALYSIS
+==================================================
+
+
+Do not only analyze current values.
+
+
+Analyze trends.
+
+
+Example:
+
+
+Data:
+
+
+SpO2:
+
+98%
+
+97%
+
+95%
+
+91%
+
+
+
+AI insight:
+
+
+"Continuous oxygen level decline detected."
+
+
+Example:
+
+
+Heart rate:
+
+
+80
+
+90
+
+110
+
+130
+
+
+
+Insight:
+
+
+"Increasing heart rate trend observed."
+
+
+
+==================================================
+7. EXPLAINABLE AI IMPLEMENTATION
+==================================================
+
+
+Healthcare AI requires transparency.
+
+
+Implement:
+
+
+SHAP
+
+
+or
+
+
+Feature importance explanation.
+
+
+
+Every prediction should explain:
+
+
+Example:
+
+
+Risk:
+
+HIGH
+
+
+Reasons:
+
+
+SpO2 decrease:
+
++35%
+
+
+Heart rate increase:
+
++30%
+
+
+Abnormal movement:
+
++15%
+
+
+
+==================================================
+8. AI INSIGHTS DASHBOARD
+==================================================
+
+
+Create:
+
+
+# AVERIS Health Intelligence
+
+
+Sections:
+
+
+## Current Risk Status
+
+
+Example:
+
+
+Health Risk:
+
+LOW
+
+
+Confidence:
+
+92%
+
+
+
+--------------------------------
+
+
+## AI Observations
+
+
+Example:
+
+
+"Your oxygen level has decreased over the last 30 minutes."
+
+
+--------------------------------
+
+
+## Risk Factors
+
+
+Display:
+
+- Contributing parameters
+- Trend changes
+- Severity
+
+
+
+==================================================
+9. AI ALERT SYSTEM
+==================================================
+
+
+Upgrade existing rule-based alerts.
+
+
+Current:
+
+
+Simple threshold alerts.
+
+
+
+Upgrade:
+
+
+AI-powered alerts.
+
+
+Example:
+
+
+Old:
+
+
+SpO2 <90%
+
+
+
+New:
+
+
+"SpO2 has continuously decreased for 15 minutes and combined with increased heart rate indicates elevated respiratory risk."
+
+
+
+==================================================
+10. CREATE AI API SERVICE
+==================================================
+
+
+Create:
+
+
+/api/ai/predict
+
+
+Input:
+
+
+{
+heart_rate,
+spo2,
+temperature,
+movement,
+history
+}
+
+
+
+Output:
+
+
+{
+risk_score:0.78,
+
+risk_level:"HIGH",
+
+confidence:0.89,
+
+explanation:[
+"Low oxygen trend",
+"Elevated heart rate"
+]
+}
+
+
+
+==================================================
+11. DATABASE EXTENSION
+==================================================
+
+
+Create:
+
+
+health_predictions
+
+
+Fields:
+
+
+- id
+- patient_id
+- risk_score
+- risk_level
+- confidence
+- explanation
+- created_at
+
+
+
+Create:
+
+
+ai_insights
+
+
+Fields:
+
+
+- id
+- patient_id
+- insight_type
+- message
+- severity
+- timestamp
+
+
+
+==================================================
+12. UI/UX REQUIREMENTS
 ==================================================
 
 
 Maintain AVERIS healthcare design.
 
 
-The dashboard should look like:
+The AI section should look like:
 
 
-- Hospital monitoring software
-- Medical command center
-- Professional healthcare platform
+Medical intelligence system
 
 
-Avoid:
+NOT:
 
 
-- Gaming dashboards
-- Hacker-style UI
-- Random AI cards
-
-
-Use:
-
-
-- Clean graphs
-- Clear status indicators
-- Medical information hierarchy
+- ChatGPT clone
+- Gaming dashboard
+- Generic AI cards
 
 
 
-==================================================
-11. PERFORMANCE REQUIREMENTS
-==================================================
+Display:
 
 
-The system should support:
-
-
-Multiple sensor updates per second.
-
-
-Optimize:
-
-
-- WebSocket handling
-- Database writes
-- Frontend rendering
+- Risk score
+- Explanation
+- Health trends
+- Important observations
 
 
 
 ==================================================
-12. TESTING REQUIREMENTS
+13. TESTING REQUIREMENTS
 ==================================================
 
 
 Test:
 
 
-Sensor Simulator:
+Normal data:
 
 
-✓ Sends continuous data
+Expected:
+
+Low risk
 
 
-Backend:
+Abnormal data:
 
 
-✓ Receives data
+Expected:
 
-✓ Stores data
-
-
-Realtime:
+High risk alert
 
 
-✓ Dashboard updates instantly
+
+Fall simulation:
 
 
-Alerts:
+Expected:
+
+Fall detected
 
 
-✓ Abnormal values trigger alerts
+
+AI explanation:
 
 
-Connection:
+Expected:
 
-
-✓ Reconnect works
+Clear reason generation
 
 
 
 ==================================================
-PHASE 2 FINAL SUCCESS CRITERIA
+PHASE 3 FINAL SUCCESS CRITERIA
 ==================================================
 
 
-At the end of Phase 2:
+At the end of Phase 3:
 
 
 AVERIS AI should have:
 
 
-✓ Real-time health monitoring
+✓ Machine learning pipeline
 
-✓ Live sensor streaming
+✓ Sensor anomaly detection
 
-✓ Dynamic healthcare dashboard
+✓ Health risk scoring
 
-✓ Real-time graphs
+✓ Fall detection intelligence
 
-✓ Device connection monitoring
+✓ Predictive trend analysis
 
-✓ Health history
+✓ Explainable AI
 
-✓ Alert generation foundation
-
-
-The final experience should feel like:
+✓ AI healthcare insights
 
 
-"A doctor can monitor a patient remotely using AVERIS."
+The final system should demonstrate:
+
+
+"AVERIS does not only monitor patients. It understands health patterns and provides early warnings."
 
 
 Not:
 
 
-"A website showing stored sensor values."
+"AVERIS only displays sensor values."

@@ -6,6 +6,7 @@ import { listDevices, effectiveStatus } from "@/lib/iot/device-service";
 import { Card, CardHeader, Chip, Callout, ButtonLink } from "@/components/ui";
 import { formatDate } from "@/lib/utils/format";
 import { LiveMonitor, type Vitals } from "./LiveMonitor";
+import type { SeriesPoint } from "@/lib/iot/series";
 
 export const metadata = { title: "Live Monitoring" };
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function MonitoringPage() {
       .select("heart_rate, spo2, temperature, movement_status, battery_percentage, recorded_at, device_id")
       .eq("patient_id", account.patientProfileId)
       .order("recorded_at", { ascending: false })
-      .limit(20)
+      .limit(400)
       .then(({ data }) => data ?? []),
     supabase
       .from("alerts")
@@ -58,6 +59,17 @@ export default async function MonitoringPage() {
     : null;
 
   const openAlerts = alerts.filter((a) => a.status === "ACTIVE");
+
+  // Seeded from the durable record so the charts are populated on first paint
+  // rather than starting blank and filling in over the next ten minutes.
+  const initialSeries: SeriesPoint[] = readings
+    .map((r) => ({
+      t: new Date(r.recorded_at).getTime(),
+      heartRate: r.heart_rate,
+      spo2: r.spo2,
+      temperature: r.temperature,
+    }))
+    .sort((a, b) => a.t - b.t);
 
   return (
     <div className="space-y-7">
@@ -119,6 +131,7 @@ export default async function MonitoringPage() {
         <LiveMonitor
           serviceUrl={process.env.NEXT_PUBLIC_IOT_WS_URL ?? null}
           initial={latest}
+          initialSeries={initialSeries}
         />
       </Card>
 
@@ -166,7 +179,7 @@ export default async function MonitoringPage() {
           title="Recent readings"
           action={
             <span className="mono text-[12.5px] text-muted">
-              {readings.length} stored
+              {readings.length} in the last window
             </span>
           }
         />
@@ -192,7 +205,7 @@ export default async function MonitoringPage() {
                 </tr>
               </thead>
               <tbody>
-                {readings.map((reading, i) => (
+                {readings.slice(0, 25).map((reading, i) => (
                   <tr key={i} className="border-b border-rule last:border-0">
                     <Td mono>{formatDate(reading.recorded_at)}</Td>
                     <Td mono>{keyById.get(reading.device_id) ?? "—"}</Td>
