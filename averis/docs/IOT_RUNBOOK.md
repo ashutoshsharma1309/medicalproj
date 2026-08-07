@@ -1,0 +1,85 @@
+# AVERIS IoT — running it end to end
+
+No hardware required. The simulator speaks the same HTTP contract the ESP32
+will, so this is the real path, not a mock.
+
+## 1. Apply the migration
+
+Paste `supabase/migrations/20260806090000_iot_phase1_monitoring.sql` into the
+Supabase SQL editor (or re-generate `supabase/apply-all.sql`).
+
+## 2. Configure and start the ingest service
+
+```bash
+cd averis/iot-service
+cp .env.example .env          # fill in SUPABASE_URL and the service-role key
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+set -a && . ./.env && set +a
+.venv/bin/uvicorn app.main:app --port 8000
+```
+
+The service-role key belongs **only** here. It bypasses RLS, which is why the
+ingest path is a separate process from the app that serves patient dashboards.
+
+## 3. Register a device
+
+In the web app: **Devices → Register a device**.
+
+The token is shown once. AVERIS stores a SHA-256 hash, so it cannot be shown
+again — losing it means rotating, not recovering.
+
+## 4. Start the simulator
+
+```bash
+cd averis
+python3 sensor_simulator/simulate.py \
+  --token avd_...          \
+  --device-key AVR001      \
+  --scenario resting
+```
+
+Scenarios: `resting` (nothing should alert), `active`, `deteriorating` (drifts
+into alert territory, for exercising the alerting path).
+
+## 5. Watch it arrive
+
+**Monitoring** shows the live tiles once the first reading lands. Nothing is
+displayed before then — no placeholder values.
+
+---
+
+## Verifying the security properties
+
+```bash
+# 28 IoT assertions, plus every prior phase
+PG_CONTAINER=supabase_db_averis PG_USER=postgres ./supabase/tests/run.sh
+
+# Both validators against one set of vectors
+npx tsx --test "lib/iot/__tests__/iot.test.ts"
+iot-service/.venv/bin/python -m pytest iot-service/tests -q
+```
+
+Worth trying by hand, because it is the property everything else rests on:
+
+```bash
+# Send AVR002's key using AVR001's token → 403, not a cross-write
+curl -X POST localhost:8000/api/device/data \
+  -H "Authorization: Bearer <AVR001 token>" \
+  -H "Content-Type: application/json" \
+  -d '{"device_id":"AVR002","heart_rate":80}'
+```
+
+---
+
+## When the ESP32 arrives
+
+Replace the simulator process. Nothing else changes.
+
+The firmware needs to: hold its token in NVS, POST the same JSON to
+`/api/device/data` with `Authorization: Bearer <token>`, and stamp
+`recorded_at` if it has an RTC (buffered readings then keep their real times
+through a network outage).
+
+MQTT and BLE are deliberately not built. The device-transport boundary is HTTP
+today; adding a broker means another producer calling the same ingest path, not
+a redesign.
