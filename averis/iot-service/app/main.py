@@ -29,11 +29,13 @@ from fastapi import FastAPI, Header, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .alerts import evaluate_reading, should_raise
 from .config import Settings, load_settings
 from .hub import ConnectionHub
+from .services.sensor_processing_service import (
+    ProcessingError,
+    SensorProcessingService,
+)
 from .store import Store
-from .validation import validate_reading
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI):
     settings: Settings = load_settings()
     _state["settings"] = settings
     _state["store"] = Store(settings)
+    _state["processing"] = SensorProcessingService(_state["store"])
     logger.info("iot service started")
     yield
     await _state["store"].aclose()
@@ -116,81 +119,47 @@ def _bearer(header: str | None) -> str | None:
 # ------------------------------------------------------------------ ingest
 @app.post("/api/device/data")
 async def ingest(request: Request, authorization: str | None = Header(default=None)):
+    """Routing only. The pipeline lives in SensorProcessingService."""
     settings: Settings = _state["settings"]
+    processing: SensorProcessingService = _state["processing"]
     store: Store = _state["store"]
 
     token = _bearer(authorization)
-    if not token:
-        # No detail about what was wrong: an unauthenticated caller learns only
-        # that it is unauthenticated.
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    device = await store.resolve_device(token)
-    if device is None:
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-    if not _within_rate_limit(device.device_id, settings.max_readings_per_minute, time.monotonic()):
-        return JSONResponse(
-            {"error": "rate_limited", "limit_per_minute": settings.max_readings_per_minute},
-            status_code=429,
-            headers={"Retry-After": "60"},
-        )
+    # Rate limiting needs an identified device, so authentication happens first
+    # and its result is reused rather than resolved twice.
+    if token:
+        device = await store.resolve_device(token)
+        if device and not _within_rate_limit(
+            device.device_id, settings.max_readings_per_minute, time.monotonic()
+        ):
+            return JSONResponse(
+                {"error": "rate_limited", "limit_per_minute": settings.max_readings_per_minute},
+                status_code=429,
+                headers={"Retry-After": "60"},
+            )
 
     try:
         body = await request.json()
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JSONResponse({"error": "invalid_json"}, status_code=400)
 
-    result = validate_reading(body)
-    if not result.ok:
-        return JSONResponse({"error": "invalid_reading", "details": list(result.errors)}, status_code=422)
-
-    reading = result.reading
-    assert reading is not None
-
-    # The payload names a device; the token proves one. A disagreement means
-    # either a misconfigured device or a token being replayed from elsewhere,
-    # and both deserve a refusal rather than a guess.
-    if reading.device_key != device.device_key.upper():
-        logger.warning("device key mismatch for device %s", device.device_id)
-        return JSONResponse({"error": "device_mismatch"}, status_code=403)
-
-    reading_id = await store.insert_reading(device, reading)
-
     try:
-        await store.touch_device(device, reading)
-    except Exception:  # noqa: BLE001 - status is not worth losing a reading over
-        logger.warning("could not update device status for %s", device.device_id)
+        processed = await processing.process(token, body)
+    except ProcessingError as error:
+        payload: dict[str, Any] = {"error": error.code}
+        if error.details:
+            payload["details"] = error.details
+        return JSONResponse(payload, status_code=error.status)
 
-    raised = evaluate_reading(reading)
-    if raised:
-        open_alerts = await store.open_alerts(device.patient_id)
-        raised = [a for a in raised if should_raise(a, open_alerts)]
-        if raised:
-            await store.insert_alerts(device, reading_id, raised)
-
-    await hub.publish(
-        device.patient_id,
-        {
-            "type": "reading",
-            "device_id": device.device_id,
-            "device_key": device.device_key,
-            "device_name": device.device_name,
-            "heart_rate": reading.heart_rate,
-            "spo2": reading.spo2,
-            "temperature": reading.temperature,
-            "movement_status": reading.movement_status,
-            "battery_percentage": reading.battery_percentage,
-            "recorded_at": reading.recorded_at.isoformat(),
-            "alerts": [
-                {"type": a.alert_type, "severity": a.severity, "message": a.message}
-                for a in raised
-            ],
-        },
-    )
+    await hub.publish(processed.device.patient_id, processed.to_event())
 
     return JSONResponse(
-        {"status": "accepted", "reading_id": reading_id, "alerts_raised": len(raised)},
+        {
+            "status": "accepted",
+            "reading_id": processed.reading_id,
+            "alerts_raised": len(processed.alerts),
+        },
         status_code=201,
     )
 
