@@ -7,6 +7,7 @@ import { Card, CardHeader, Chip, Callout, ButtonLink } from "@/components/ui";
 import { formatDate } from "@/lib/utils/format";
 import { LiveMonitor, type Vitals } from "./LiveMonitor";
 import type { SeriesPoint } from "@/lib/iot/series";
+import { RiskPanel, type RiskPayload } from "./RiskPanel";
 
 export const metadata = { title: "Live Monitoring" };
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function MonitoringPage() {
 
   const supabase = await createClient();
 
-  const [devices, readings, alerts] = await Promise.all([
+  const [devices, readings, latestPrediction, aiInsights, alerts] = await Promise.all([
     listDevices(supabase, account.patientProfileId),
     // History comes from the database over RLS; the socket only carries live
     // values. A dropped socket therefore costs the tiles, never the record.
@@ -33,6 +34,21 @@ export default async function MonitoringPage() {
       .eq("patient_id", account.patientProfileId)
       .order("recorded_at", { ascending: false })
       .limit(400)
+      .then(({ data }) => data ?? []),
+    supabase
+      .from("health_predictions")
+      .select("risk_score, risk_category, confidence_score, explanation, model_version, created_at")
+      .eq("patient_id", account.patientProfileId)
+      .eq("prediction_type", "VITAL_DETERIORATION")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => data?.[0] ?? null),
+    supabase
+      .from("ai_insights")
+      .select("id, insight_type, message, severity, evidence, confidence, created_at")
+      .eq("patient_id", account.patientProfileId)
+      .order("created_at", { ascending: false })
+      .limit(8)
       .then(({ data }) => data ?? []),
     supabase
       .from("alerts")
@@ -59,6 +75,21 @@ export default async function MonitoringPage() {
     : null;
 
   const openAlerts = alerts.filter((a) => a.status === "ACTIVE");
+
+  // Reconstructed from what was stored with the prediction rather than
+  // recomputed: a later engine version would produce different contributions,
+  // and the patient would have no way to see what they were actually shown.
+  const risk: RiskPayload | null = latestPrediction
+    ? {
+        risk_score: Number(latestPrediction.risk_score),
+        risk_level: latestPrediction.risk_category as RiskPayload["risk_level"],
+        confidence: Number(latestPrediction.confidence_score ?? 0),
+        ...(latestPrediction.explanation as Omit<
+          RiskPayload,
+          "risk_score" | "risk_level" | "confidence"
+        >),
+      }
+    : null;
 
   // Seeded from the durable record so the charts are populated on first paint
   // rather than starting blank and filling in over the next ten minutes.
@@ -121,6 +152,61 @@ export default async function MonitoringPage() {
               Each alert names the value measured and the threshold it crossed. Thresholds are
               published escalation triggers for a resting adult, not a judgement about you —
               discuss anything here with your healthcare provider.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {risk && (
+        <Card>
+          <CardHeader
+            eyebrow="Health Intelligence"
+            title="AI risk assessment"
+            action={
+              <span className="mono text-[12.5px] text-muted">
+                {formatDate(latestPrediction!.created_at)}
+              </span>
+            }
+          />
+          <RiskPanel risk={risk} />
+        </Card>
+      )}
+
+      {aiInsights.length > 0 && (
+        <Card>
+          <CardHeader
+            eyebrow="Health Intelligence"
+            title="AI observations"
+            action={
+              <span className="mono text-[12.5px] text-muted">
+                {aiInsights.length} recent
+              </span>
+            }
+          />
+          <ul className="divide-y divide-rule">
+            {aiInsights.map((insight) => (
+              <li key={insight.id} className="px-6 py-4">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Chip tone={SEVERITY_TONE[insight.severity] ?? "default"}>
+                    {insight.insight_type.toLowerCase().replace(/_/g, " ")}
+                  </Chip>
+                  <span className="mono text-[12px] text-muted">
+                    {formatDate(insight.created_at)}
+                  </span>
+                  {insight.confidence !== null && (
+                    <span className="mono text-[11.5px] text-muted">
+                      {Math.round(Number(insight.confidence) * 100)}% coverage
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-[14.5px] leading-relaxed">{insight.message}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="border-t border-rule px-6 py-3.5">
+            <p className="text-[13px] leading-relaxed text-muted">
+              Observations describe patterns in the measurements — what changed, over what
+              window, by how much. They are not a diagnosis, and AVERIS is not a medical device.
             </p>
           </div>
         </Card>
