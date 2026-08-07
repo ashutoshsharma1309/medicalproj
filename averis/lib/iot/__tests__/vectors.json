@@ -1,0 +1,203 @@
+{
+  "_comment": [
+    "Shared conformance vectors for the sensor wire contract.",
+    "",
+    "The same payloads are run against the TypeScript validator in",
+    "lib/iot/reading-validation.ts and the Python one in",
+    "iot-service/app/validation.py. Both must agree.",
+    "",
+    "This file exists because the two implementations are a genuine",
+    "duplication: the ingest service is Python and the app is TypeScript, and",
+    "there is no shared runtime to put one copy in. A payload accepted by one",
+    "and rejected by the other is a bug in whichever is wrong — and without",
+    "these vectors it is a bug discovered by a device in the field rather than",
+    "by CI.",
+    "",
+    "Alert vectors work the same way against alert-rules.ts and alerts.py."
+  ],
+
+  "validation": [
+    {
+      "name": "the brief's example payload",
+      "payload": { "device_id": "AVR001", "heart_rate": 82, "spo2": 97, "temperature": 36.8, "movement": "normal" },
+      "expect": { "ok": true, "deviceKey": "AVR001", "heartRate": 82, "spo2": 97, "temperature": 36.8, "movementStatus": "NORMAL" }
+    },
+    {
+      "name": "device key is upper-cased",
+      "payload": { "device_id": "avr001", "heart_rate": 70 },
+      "expect": { "ok": true, "deviceKey": "AVR001", "heartRate": 70 }
+    },
+    {
+      "name": "a pulse oximeter sends no temperature",
+      "payload": { "device_id": "AVR002", "heart_rate": 71, "spo2": 98 },
+      "expect": { "ok": true, "temperature": null }
+    },
+    {
+      "name": "temperature alone is a valid reading",
+      "payload": { "device_id": "AVR003", "temperature": 36.9 },
+      "expect": { "ok": true, "heartRate": null, "spo2": null }
+    },
+    {
+      "name": "no measurements at all is rejected",
+      "payload": { "device_id": "AVR001", "movement": "normal" },
+      "expect": { "ok": false, "errorContains": "at least one measurement" }
+    },
+    {
+      "name": "missing device id is rejected",
+      "payload": { "heart_rate": 70 },
+      "expect": { "ok": false, "errorContains": "device_id" }
+    },
+    {
+      "name": "a broken sensor reading 4000 BPM is rejected",
+      "payload": { "device_id": "AVR001", "heart_rate": 4000 },
+      "expect": { "ok": false, "errorContains": "physiologically possible" }
+    },
+    {
+      "name": "an alarming but real 190 BPM is accepted",
+      "payload": { "device_id": "AVR001", "heart_rate": 190 },
+      "expect": { "ok": true, "heartRate": 190 }
+    },
+    {
+      "name": "an alarming but real SpO2 of 82 is accepted",
+      "payload": { "device_id": "AVR001", "spo2": 82 },
+      "expect": { "ok": true, "spo2": 82 }
+    },
+    {
+      "name": "SpO2 above 100 is impossible and rejected",
+      "payload": { "device_id": "AVR001", "spo2": 104 },
+      "expect": { "ok": false, "errorContains": "physiologically possible" }
+    },
+    {
+      "name": "a room-temperature body reading is rejected",
+      "payload": { "device_id": "AVR001", "temperature": 21.0 },
+      "expect": { "ok": false, "errorContains": "physiologically possible" }
+    },
+    {
+      "name": "a real fever of 39.4 is accepted",
+      "payload": { "device_id": "AVR001", "temperature": 39.4 },
+      "expect": { "ok": true, "temperature": 39.4 }
+    },
+    {
+      "name": "unknown movement labels degrade rather than fail the reading",
+      "payload": { "device_id": "AVR001", "heart_rate": 70, "movement": "sprinting-backwards" },
+      "expect": { "ok": true, "heartRate": 70, "movementStatus": "UNKNOWN" }
+    },
+    {
+      "name": "common firmware spelling 'walking' maps to ACTIVE",
+      "payload": { "device_id": "AVR001", "heart_rate": 95, "movement": "walking" },
+      "expect": { "ok": true, "movementStatus": "ACTIVE" }
+    },
+    {
+      "name": "'fall' maps to FALL_SUSPECTED",
+      "payload": { "device_id": "AVR001", "heart_rate": 95, "movement": "fall" },
+      "expect": { "ok": true, "movementStatus": "FALL_SUSPECTED" }
+    },
+    {
+      "name": "a non-numeric heart rate is rejected",
+      "payload": { "device_id": "AVR001", "heart_rate": "seventy" },
+      "expect": { "ok": false, "errorContains": "must be a number" }
+    },
+    {
+      "name": "a boolean is not a number",
+      "payload": { "device_id": "AVR001", "heart_rate": true },
+      "expect": { "ok": false, "errorContains": "must be a number" }
+    },
+    {
+      "name": "a timestamp far in the future is rejected",
+      "payload": { "device_id": "AVR001", "heart_rate": 70, "recorded_at": "2099-01-01T00:00:00Z" },
+      "expect": { "ok": false, "errorContains": "future" }
+    },
+    {
+      "name": "a past timestamp is kept, so buffered readings survive",
+      "payload": { "device_id": "AVR001", "heart_rate": 70, "recorded_at": "2026-08-01T10:00:00Z" },
+      "expect": { "ok": true, "recordedAt": "2026-08-01T10:00:00.000Z" }
+    },
+    {
+      "name": "a non-object body is rejected",
+      "payload": "not an object",
+      "expect": { "ok": false, "errorContains": "JSON object" }
+    },
+    {
+      "name": "no payload field can carry a patient id",
+      "payload": { "device_id": "AVR001", "heart_rate": 70, "patient_id": "11111111-1111-4111-8111-111111111111" },
+      "expect": { "ok": true, "noPatientIdInResult": true }
+    }
+  ],
+
+  "alerts": [
+    {
+      "name": "an ordinary resting reading raises nothing",
+      "reading": { "heartRate": 68, "spo2": 98, "temperature": 36.7, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": []
+    },
+    {
+      "name": "SpO2 of 88 is critical",
+      "reading": { "heartRate": 80, "spo2": 88, "temperature": 36.8, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "SPO2_LOW", "severity": "CRITICAL" }]
+    },
+    {
+      "name": "SpO2 of 92 is a warning, not a critical",
+      "reading": { "heartRate": 80, "spo2": 92, "temperature": 36.8, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "SPO2_LOW", "severity": "WARNING" }]
+    },
+    {
+      "name": "SpO2 exactly at the 90 threshold is not critical",
+      "reading": { "heartRate": 80, "spo2": 90, "temperature": 36.8, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "SPO2_LOW", "severity": "WARNING" }]
+    },
+    {
+      "name": "155 BPM is critical",
+      "reading": { "heartRate": 155, "spo2": 97, "temperature": 36.8, "movementStatus": "ACTIVE", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "HEART_RATE_HIGH", "severity": "CRITICAL" }]
+    },
+    {
+      "name": "130 BPM is a warning",
+      "reading": { "heartRate": 130, "spo2": 97, "temperature": 36.8, "movementStatus": "ACTIVE", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "HEART_RATE_HIGH", "severity": "WARNING" }]
+    },
+    {
+      "name": "38 BPM is critically low",
+      "reading": { "heartRate": 38, "spo2": 97, "temperature": 36.8, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "HEART_RATE_LOW", "severity": "CRITICAL" }]
+    },
+    {
+      "name": "a fever of 38.6 warns",
+      "reading": { "heartRate": 90, "spo2": 97, "temperature": 38.6, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "TEMPERATURE_HIGH", "severity": "WARNING" }]
+    },
+    {
+      "name": "39.8 is a critical temperature",
+      "reading": { "heartRate": 90, "spo2": 97, "temperature": 39.8, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "TEMPERATURE_HIGH", "severity": "CRITICAL" }]
+    },
+    {
+      "name": "hypothermia at 34.8 is critical",
+      "reading": { "heartRate": 60, "spo2": 96, "temperature": 34.8, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "TEMPERATURE_LOW", "severity": "CRITICAL" }]
+    },
+    {
+      "name": "a suspected fall is always critical",
+      "reading": { "heartRate": 75, "spo2": 97, "temperature": 36.8, "movementStatus": "FALL_SUSPECTED", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "FALL_SUSPECTED", "severity": "CRITICAL" }]
+    },
+    {
+      "name": "a flat battery is INFO, never ranked beside a vital sign",
+      "reading": { "heartRate": 70, "spo2": 98, "temperature": 36.7, "movementStatus": "RESTING", "batteryPercentage": 8 },
+      "expect": [{ "alertType": "BATTERY_LOW", "severity": "INFO" }]
+    },
+    {
+      "name": "several breaches raise several alerts",
+      "reading": { "heartRate": 160, "spo2": 87, "temperature": 39.9, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [
+        { "alertType": "SPO2_LOW", "severity": "CRITICAL" },
+        { "alertType": "HEART_RATE_HIGH", "severity": "CRITICAL" },
+        { "alertType": "TEMPERATURE_HIGH", "severity": "CRITICAL" }
+      ]
+    },
+    {
+      "name": "a missing measurement raises nothing for that signal",
+      "reading": { "heartRate": null, "spo2": 88, "temperature": null, "movementStatus": "RESTING", "batteryPercentage": 90 },
+      "expect": [{ "alertType": "SPO2_LOW", "severity": "CRITICAL" }]
+    }
+  ]
+}
