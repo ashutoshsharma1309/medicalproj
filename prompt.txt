@@ -1,0 +1,758 @@
+You are a Senior IoT Engineer, Real-Time Systems Architect, Backend Engineer, and Healthcare Platform Developer with 10+ years of experience building IoT-based medical monitoring systems.
+
+You are continuing development of:
+
+# AVERIS AI
+
+AI-Powered IoT Healthcare Monitoring and Early Risk Prediction System
+
+
+==================================================
+CURRENT PROJECT STATUS
+==================================================
+
+Completed:
+
+PHASE 1:
+
+✓ Patient authentication
+
+✓ Device management system
+
+✓ IoT-ready database architecture
+
+✓ Sensor data APIs
+
+✓ Sensor simulator service
+
+✓ Real-time architecture foundation
+
+
+The current system is ready to receive sensor data.
+
+Now implement:
+
+# PHASE 2: REAL-TIME HEALTH MONITORING SYSTEM
+
+
+==================================================
+PHASE OBJECTIVE
+==================================================
+
+Transform AVERIS from an IoT-ready platform into a real-time patient monitoring system.
+
+
+The system should continuously receive health data from:
+
+Current:
+
+Sensor Simulator
+
+
+Future:
+
+ESP32 wearable device
+
+
+and display:
+
+- Live patient vitals
+- Real-time graphs
+- Health trends
+- Device status
+
+
+==================================================
+IMPORTANT RULE
+==================================================
+
+Do not create fake dashboard numbers.
+
+All displayed health values must come from:
+
+
+Sensor Simulator
+
+OR
+
+Future ESP32 device
+
+
+The simulator should behave exactly like a real wearable device.
+
+
+==================================================
+SYSTEM ARCHITECTURE
+==================================================
+
+
+Implement:
+
+
+Sensor Simulator / ESP32
+
+        |
+
+        |
+
+FastAPI Data Ingestion Layer
+
+        |
+
+        |
+
+Database Storage
+
+        |
+
+        |
+
+Real-Time Communication Layer
+
+        |
+
+        |
+
+React Healthcare Dashboard
+
+
+
+==================================================
+1. IMPROVE SENSOR SIMULATOR
+==================================================
+
+
+Upgrade the existing simulator.
+
+
+The simulator should behave like an actual wearable.
+
+
+Generate:
+
+
+Heart Rate:
+
+Realistic range:
+
+60-100 BPM
+
+
+SpO2:
+
+95-100%
+
+
+Temperature:
+
+36-37.5°C
+
+
+Movement:
+
+- Resting
+- Walking
+- Running
+- Fall event
+
+
+==================================================
+SIMULATION MODES
+==================================================
+
+
+Create:
+
+
+Normal Mode
+
+
+Example:
+
+Heart Rate:
+78 BPM
+
+SpO2:
+98%
+
+Temperature:
+36.7°C
+
+
+
+--------------------------------
+
+
+Abnormal Mode
+
+
+Simulate:
+
+
+High Heart Rate:
+
+150 BPM
+
+
+Low SpO2:
+
+88%
+
+
+High Temperature:
+
+39°C
+
+
+Fall Detection:
+
+
+Sudden acceleration event
+
+
+
+This will help test future AI alerts.
+
+
+==================================================
+2. IMPLEMENT REAL-TIME DATA STREAMING
+==================================================
+
+
+Implement WebSocket communication.
+
+
+Architecture:
+
+
+Sensor Data
+
+↓
+
+FastAPI WebSocket Server
+
+↓
+
+React Dashboard
+
+
+Requirements:
+
+
+- Persistent connection
+- Automatic reconnect
+- Error handling
+- Connection status display
+
+
+
+==================================================
+3. CREATE LIVE VITAL MONITORING DASHBOARD
+==================================================
+
+
+Create:
+
+
+# AVERIS Live Monitoring Center
+
+
+
+Display:
+
+
+## Heart Rate Card
+
+
+Show:
+
+
+Current value
+
+Status:
+
+Normal / Warning / Critical
+
+
+
+Example:
+
+
+❤️ Heart Rate
+
+82 BPM
+
+Normal
+
+
+
+--------------------------------
+
+
+## SpO2 Card
+
+
+Example:
+
+
+🫁 Oxygen Level
+
+97%
+
+Normal
+
+
+
+--------------------------------
+
+
+## Temperature Card
+
+
+Example:
+
+
+🌡 Temperature
+
+36.8°C
+
+Normal
+
+
+
+--------------------------------
+
+
+## Movement Card
+
+
+Example:
+
+
+🚶 Activity
+
+Walking
+
+
+
+==================================================
+4. REAL-TIME GRAPH VISUALIZATION
+==================================================
+
+
+Add live charts.
+
+
+Charts:
+
+
+Heart Rate Timeline
+
+
+Display:
+
+Last 1 minute
+
+Last 10 minutes
+
+Last 1 hour
+
+
+
+SpO2 Timeline
+
+
+Temperature Timeline
+
+
+
+Requirements:
+
+
+- Smooth updates
+- No page refresh
+- Time-based plotting
+
+
+
+==================================================
+5. DEVICE CONNECTION STATUS
+==================================================
+
+
+Add:
+
+
+Device Health Panel
+
+
+Display:
+
+
+Device ID:
+
+AVR001
+
+
+Connection:
+
+Connected
+
+
+Last Data Received:
+
+2 seconds ago
+
+
+Battery:
+
+85%
+
+
+
+Future compatible with ESP32.
+
+
+
+==================================================
+6. BACKEND DATA PIPELINE IMPROVEMENT
+==================================================
+
+
+Improve data ingestion.
+
+
+When sensor data arrives:
+
+
+Validate:
+
+
+- Device exists
+- Patient exists
+- Values are within range
+
+
+Store:
+
+
+- Raw sensor data
+- Timestamp
+- Device information
+
+
+
+Add:
+
+
+Data processing service:
+
+
+services/
+
+
+sensor_processing_service
+
+
+
+Responsibilities:
+
+
+- Validation
+- Formatting
+- Data normalization
+
+
+
+==================================================
+7. ADD PATIENT HEALTH HISTORY
+==================================================
+
+
+Create:
+
+
+# Health History
+
+
+Display:
+
+
+Previous readings:
+
+
+Example:
+
+
+Today:
+
+
+10:00 AM
+
+Heart Rate:
+82
+
+
+10:05 AM
+
+Heart Rate:
+85
+
+
+10:10 AM
+
+SpO2:
+97
+
+
+
+Allow filtering:
+
+
+- Last hour
+- Today
+- This week
+
+
+
+==================================================
+8. CREATE ALERT FOUNDATION
+==================================================
+
+
+Do not implement AI prediction yet.
+
+
+Only create rule-based alerts.
+
+
+Examples:
+
+
+Heart Rate:
+
+If >120 BPM
+
+
+Generate:
+
+
+High heart rate detected
+
+
+
+SpO2:
+
+If <90%
+
+
+Generate:
+
+
+Low oxygen level detected
+
+
+
+Temperature:
+
+If >38°C
+
+
+Generate:
+
+
+High temperature detected
+
+
+
+Movement:
+
+If fall detected
+
+
+Generate:
+
+
+Possible fall detected
+
+
+
+==================================================
+9. ALERT DASHBOARD
+==================================================
+
+
+Create:
+
+
+# Health Alerts
+
+
+Display:
+
+
+Alert severity:
+
+
+LOW
+
+MEDIUM
+
+HIGH
+
+CRITICAL
+
+
+
+Example:
+
+
+CRITICAL
+
+
+Patient:
+
+Rahul
+
+
+Issue:
+
+Low SpO2 detected
+
+
+Time:
+
+10:45 AM
+
+
+
+==================================================
+10. UI/UX REQUIREMENTS
+==================================================
+
+
+Maintain AVERIS healthcare design.
+
+
+The dashboard should look like:
+
+
+- Hospital monitoring software
+- Medical command center
+- Professional healthcare platform
+
+
+Avoid:
+
+
+- Gaming dashboards
+- Hacker-style UI
+- Random AI cards
+
+
+Use:
+
+
+- Clean graphs
+- Clear status indicators
+- Medical information hierarchy
+
+
+
+==================================================
+11. PERFORMANCE REQUIREMENTS
+==================================================
+
+
+The system should support:
+
+
+Multiple sensor updates per second.
+
+
+Optimize:
+
+
+- WebSocket handling
+- Database writes
+- Frontend rendering
+
+
+
+==================================================
+12. TESTING REQUIREMENTS
+==================================================
+
+
+Test:
+
+
+Sensor Simulator:
+
+
+✓ Sends continuous data
+
+
+Backend:
+
+
+✓ Receives data
+
+✓ Stores data
+
+
+Realtime:
+
+
+✓ Dashboard updates instantly
+
+
+Alerts:
+
+
+✓ Abnormal values trigger alerts
+
+
+Connection:
+
+
+✓ Reconnect works
+
+
+
+==================================================
+PHASE 2 FINAL SUCCESS CRITERIA
+==================================================
+
+
+At the end of Phase 2:
+
+
+AVERIS AI should have:
+
+
+✓ Real-time health monitoring
+
+✓ Live sensor streaming
+
+✓ Dynamic healthcare dashboard
+
+✓ Real-time graphs
+
+✓ Device connection monitoring
+
+✓ Health history
+
+✓ Alert generation foundation
+
+
+The final experience should feel like:
+
+
+"A doctor can monitor a patient remotely using AVERIS."
+
+
+Not:
+
+
+"A website showing stored sensor values."
