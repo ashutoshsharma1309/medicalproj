@@ -56,36 +56,71 @@ class VitalSign:
 
 
 SCENARIOS = {
-    # Ordinary resting adult. Nothing here should trip an alert.
+    # ── Normal mode ─────────────────────────────────────────────────────────
+    # An ordinary resting adult. Nothing here should trip an alert, which makes
+    # it the scenario that proves the alerting path is not firing on noise.
     "resting": {
-        "heart_rate": VitalSign(68, 58, 82, 2.0),
-        "spo2": VitalSign(98, 96, 100, 0.4),
-        "temperature": VitalSign(36.7, 36.3, 37.1, 0.08, precision=1),
+        "heart_rate": VitalSign(72, 60, 100, 2.0),
+        "spo2": VitalSign(98, 95, 100, 0.4),
+        "temperature": VitalSign(36.7, 36.0, 37.5, 0.08, precision=1),
         "movement": ["RESTING", "RESTING", "NORMAL"],
     },
-    "active": {
-        "heart_rate": VitalSign(105, 88, 135, 4.0),
-        "spo2": VitalSign(97, 94, 100, 0.5),
-        "temperature": VitalSign(37.2, 36.8, 37.8, 0.1, precision=1),
+    "walking": {
+        "heart_rate": VitalSign(96, 75, 118, 3.0),
+        "spo2": VitalSign(97, 95, 100, 0.5),
+        "temperature": VitalSign(37.0, 36.4, 37.5, 0.09, precision=1),
         "movement": ["ACTIVE", "ACTIVE", "NORMAL"],
     },
+    "running": {
+        # Deliberately brushes the 120 BPM warning threshold: exertion is a
+        # legitimate reason for a high heart rate, and a monitor that cannot
+        # tell exercise from distress will be muted by its user within a week.
+        "heart_rate": VitalSign(138, 110, 165, 5.0),
+        "spo2": VitalSign(96, 93, 99, 0.6),
+        "temperature": VitalSign(37.6, 37.0, 38.4, 0.12, precision=1),
+        "movement": ["ACTIVE"],
+    },
+
+    # ── Abnormal mode ───────────────────────────────────────────────────────
     # Drifts into alert territory, for exercising the alerting path end to end.
     "deteriorating": {
-        "heart_rate": VitalSign(115, 95, 165, 5.0),
-        "spo2": VitalSign(94, 86, 97, 0.9),
-        "temperature": VitalSign(38.1, 37.4, 39.8, 0.15, precision=1),
+        "heart_rate": VitalSign(118, 95, 168, 5.0),
+        "spo2": VitalSign(94, 84, 97, 0.9),
+        "temperature": VitalSign(38.2, 37.4, 39.9, 0.15, precision=1),
         "movement": ["RESTING", "NORMAL"],
+    },
+    # Every channel abnormal at once, for checking that several alerts can be
+    # raised from one reading without one masking the others.
+    "critical": {
+        "heart_rate": VitalSign(158, 145, 180, 4.0),
+        "spo2": VitalSign(87, 82, 91, 0.8),
+        "temperature": VitalSign(39.6, 39.0, 40.5, 0.12, precision=1),
+        "movement": ["RESTING"],
     },
 }
 
+def build_payload(
+    device_key: str,
+    scenario: dict,
+    rng: random.Random,
+    battery: float,
+    fall: bool = False,
+) -> dict:
+    movement = "FALL_SUSPECTED" if fall else rng.choice(scenario["movement"])
 
-def build_payload(device_key: str, scenario: dict, rng: random.Random, battery: float) -> dict:
+    # A real fall is not a movement label on an otherwise calm reading: the
+    # impact spikes heart rate. Sending the label alone would test the alert
+    # rule while testing nothing about how a fall actually presents.
+    heart_rate = int(scenario["heart_rate"].tick(rng))
+    if fall:
+        heart_rate = min(200, heart_rate + rng.randint(25, 45))
+
     return {
         "device_id": device_key,
-        "heart_rate": int(scenario["heart_rate"].tick(rng)),
+        "heart_rate": heart_rate,
         "spo2": int(scenario["spo2"].tick(rng)),
         "temperature": scenario["temperature"].tick(rng),
-        "movement": rng.choice(scenario["movement"]),
+        "movement": movement,
         "battery": int(battery),
         # The device stamps its own time. Sending it exercises the same path a
         # device buffering through a network outage will use.
@@ -123,6 +158,12 @@ def main() -> int:
     parser.add_argument("--scenario", choices=sorted(SCENARIOS), default="resting")
     parser.add_argument("--count", type=int, default=0, help="Readings to send; 0 means run until stopped")
     parser.add_argument("--seed", type=int, default=None, help="Seed for a reproducible series")
+    parser.add_argument(
+        "--fall-after",
+        type=int,
+        default=0,
+        help="Inject a fall event after N readings (0 = never)",
+    )
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
@@ -152,7 +193,8 @@ def main() -> int:
         # Roughly a day of battery at a two-second interval.
         battery = max(0.0, battery - 0.0025)
 
-        payload = build_payload(args.device_key, scenario, rng, battery)
+        fall = args.fall_after > 0 and sent + 1 == args.fall_after
+        payload = build_payload(args.device_key, scenario, rng, battery, fall=fall)
         status, body = post(args.url, args.token, payload)
 
         if status == 201:
