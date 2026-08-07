@@ -301,14 +301,29 @@ create policy "Patients acknowledge own alerts"
 -- role, and no select on iot_devices.token_hash beyond what the column
 -- privilege below allows.
 -- ===========================================================================
-grant select, insert, update, delete on public.iot_devices     to authenticated;
-grant select                        on public.sensor_readings  to authenticated;
-grant select, update                on public.alerts           to authenticated;
-grant usage, select on sequence public.sensor_readings_id_seq to authenticated;
+-- SELECT is granted column by column, deliberately.
+--
+-- The obvious spelling — `grant select on iot_devices` followed by
+-- `revoke select (token_hash)` — does not work. Postgres has no way to
+-- subtract a column from a table-level grant: the revoke succeeds, reports
+-- nothing, and the column stays readable. A `select *` from client code would
+-- then hand out every device credential in the account, and the migration
+-- would look correct in review.
+--
+-- Enumerating the readable columns is the only spelling that actually
+-- withholds one. token_hash is absent from this list and therefore
+-- unreadable; INSERT and UPDATE remain table-level so registration and
+-- rotation can still write it.
+grant select (
+  id, patient_id, device_key, device_name, device_type, token_issued_at,
+  connection_status, battery_percentage, firmware_version,
+  last_connected_at, last_reading_at, created_at, updated_at
+) on public.iot_devices to authenticated;
 
--- The hash is never needed by a browser. Revoking the column means an
--- over-broad `select *` from client code cannot leak it even by accident.
-revoke select (token_hash) on public.iot_devices from authenticated;
+grant insert, update, delete on public.iot_devices to authenticated;
+
+grant select         on public.sensor_readings to authenticated;
+grant select, update on public.alerts          to authenticated;
 
 -- ===========================================================================
 -- Device resolution

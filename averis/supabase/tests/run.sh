@@ -66,7 +66,8 @@ done
 # predates the naming convention, so it is applied first by name.
 for assertions in \
   "$ROOT/supabase/tests/rls_verification.sql" \
-  "$ROOT"/supabase/tests/phase*_rls_verification.sql
+  "$ROOT"/supabase/tests/phase*_rls_verification.sql \
+  "$ROOT"/supabase/tests/iot_*_rls_verification.sql
 do
   [ -f "$assertions" ] || continue
   echo "▸ Running $(basename "$assertions")"
