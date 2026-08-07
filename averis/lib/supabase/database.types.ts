@@ -71,6 +71,38 @@ export type RiskCategoryEnum = "LOW" | "MODERATE" | "HIGH";
 
 export type KnowledgeSourceType = "PATIENT_DOCUMENT" | "MEDICAL_KNOWLEDGE";
 
+/* ------------------------------------------------ IoT monitoring (Phase 1) */
+
+export type DeviceTypeEnum =
+  | "WEARABLE_BAND"
+  | "PULSE_OXIMETER"
+  | "SMART_WATCH"
+  | "CHEST_STRAP"
+  | "OTHER";
+
+export type ConnectionStatusEnum = "ONLINE" | "OFFLINE" | "PROVISIONED" | "RETIRED";
+
+export type MovementStatusEnum =
+  | "RESTING"
+  | "NORMAL"
+  | "ACTIVE"
+  | "FALL_SUSPECTED"
+  | "UNKNOWN";
+
+export type AlertTypeEnum =
+  | "HEART_RATE_HIGH"
+  | "HEART_RATE_LOW"
+  | "SPO2_LOW"
+  | "TEMPERATURE_HIGH"
+  | "TEMPERATURE_LOW"
+  | "FALL_SUSPECTED"
+  | "DEVICE_OFFLINE"
+  | "BATTERY_LOW";
+
+export type AlertSeverityEnum = "INFO" | "WARNING" | "CRITICAL";
+
+export type AlertStateEnum = "ACTIVE" | "ACKNOWLEDGED" | "RESOLVED";
+
 export type KnowledgeCategoryEnum =
   | "LAB_REFERENCE"
   | "CONDITION"
@@ -500,6 +532,92 @@ export type Database = {
         // Plan changes come from billing, which does not run as the user.
         Insert: Record<never, never>;
         Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      iot_devices: {
+        Row: {
+          id: string;
+          patient_id: string;
+          device_key: string;
+          device_name: string;
+          device_type: DeviceTypeEnum;
+          // token_hash is deliberately absent: the column grant is revoked
+          // from `authenticated`, so selecting it fails rather than leaks.
+          token_issued_at: string;
+          connection_status: ConnectionStatusEnum;
+          battery_percentage: number | null;
+          firmware_version: string | null;
+          last_connected_at: string | null;
+          last_reading_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          device_key: string;
+          device_name: string;
+          device_type?: DeviceTypeEnum;
+          token_hash: string;
+          token_issued_at?: string;
+          connection_status?: ConnectionStatusEnum;
+          battery_percentage?: number | null;
+          firmware_version?: string | null;
+        };
+        Update: {
+          device_name?: string;
+          device_type?: DeviceTypeEnum;
+          token_hash?: string;
+          token_issued_at?: string;
+          connection_status?: ConnectionStatusEnum;
+          battery_percentage?: number | null;
+          firmware_version?: string | null;
+        };
+        Relationships: [];
+      };
+
+      sensor_readings: {
+        Row: {
+          id: number;
+          device_id: string;
+          patient_id: string;
+          heart_rate: number | null;
+          spo2: number | null;
+          temperature: number | null;
+          movement_status: MovementStatusEnum;
+          battery_percentage: number | null;
+          recorded_at: string;
+          received_at: string;
+        };
+        // Append-only, and no client role may write. Ingestion runs as the
+        // service role inside the IoT service.
+        Insert: Record<never, never>;
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      alerts: {
+        Row: {
+          id: string;
+          patient_id: string;
+          device_id: string | null;
+          reading_id: number | null;
+          alert_type: AlertTypeEnum;
+          severity: AlertSeverityEnum;
+          message: string;
+          observed_value: number | null;
+          threshold_value: number | null;
+          status: AlertStateEnum;
+          acknowledged_at: string | null;
+          created_at: string;
+        };
+        // Raised by the system; a patient may only acknowledge.
+        Insert: Record<never, never>;
+        Update: {
+          status?: AlertStateEnum;
+          acknowledged_at?: string | null;
+        };
         Relationships: [];
       };
 
