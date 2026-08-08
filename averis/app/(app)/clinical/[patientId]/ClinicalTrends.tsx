@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { VitalChart } from "@/app/(app)/monitoring/VitalChart";
 import { windowed, WINDOW_LABEL, type SeriesPoint, type TimeWindow } from "@/lib/iot/series";
+import { useVisibleInterval } from "@/lib/hooks/use-visible-interval";
 
 /**
  * Health trends, for the clinician reading the chart.
@@ -32,11 +33,10 @@ export function ClinicalTrends({ points }: { points: SeriesPoint[] }) {
   // server-rendered Date.now() and the client's differ, and the mismatch would
   // shift every point on first paint.
   const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => setNow(Date.now()), []);
+  // Advances the chart's right edge. Paused when hidden — a background tab
+  // redrawing three SVGs every thirty seconds is work with no viewer.
+  useVisibleInterval(() => setNow(Date.now()), 30_000);
 
   const visible = now === null ? [] : windowed(points, window, now);
 

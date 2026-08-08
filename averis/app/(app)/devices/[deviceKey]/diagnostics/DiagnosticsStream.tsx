@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useVisibleInterval } from "@/lib/hooks/use-visible-interval";
 
 /**
  * Live values on the engineering page.
@@ -40,16 +41,13 @@ export function DiagnosticsStream({
   const [ticks, setTicks] = useState(0);
   const [live, setLive] = useState(true);
 
-  useEffect(() => {
-    if (!live) return;
-
-    const timer = setInterval(() => {
-      setTicks((n) => n + 1);
-      router.refresh();
-    }, POLL_MS);
-
-    return () => clearInterval(timer);
-  }, [live, router]);
+  // Two-second polling on a page that runs three queries per refresh. Without
+  // the visibility guard a tab left open overnight is ~43,000 round trips
+  // rendering a tree nobody is looking at.
+  useVisibleInterval(() => {
+    setTicks((n) => n + 1);
+    router.refresh();
+  }, POLL_MS, live);
 
   const age = initial.recordedAt
     ? Math.round((Date.now() - new Date(initial.recordedAt).getTime()) / 1000)

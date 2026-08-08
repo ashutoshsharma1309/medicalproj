@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useVisibleInterval } from "@/lib/hooks/use-visible-interval";
 
 /**
  * Keeps the checklist current while someone watches it.
@@ -20,11 +21,7 @@ export function DemoRefresh() {
   const router = useRouter();
   const [live, setLive] = useState(true);
 
-  useEffect(() => {
-    if (!live) return;
-    const timer = setInterval(() => router.refresh(), POLL_MS);
-    return () => clearInterval(timer);
-  }, [live, router]);
+  useVisibleInterval(() => router.refresh(), POLL_MS, live);
 
   return (
     <button

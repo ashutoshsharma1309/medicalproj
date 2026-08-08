@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useVisibleInterval } from "@/lib/hooks/use-visible-interval";
 import { Chip } from "@/components/ui";
 import { dismissNotice, dismissAllNotices } from "./actions";
 import type { CareNotice } from "@/lib/care/care-inbox-service";
@@ -74,13 +75,15 @@ export function CareInbox({
       )
       .subscribe((status) => setLive(status === "SUBSCRIBED"));
 
-    const timer = setInterval(() => router.refresh(), REFRESH_MS);
-
     return () => {
-      clearInterval(timer);
       void supabase.removeChannel(channel);
     };
   }, [recipientId, router]);
+
+  // The backstop re-read. Paused while the tab is hidden and fired the moment
+  // it comes back, so a clinician returning to this tab sees current data
+  // rather than whatever was true when they left.
+  useVisibleInterval(() => router.refresh(), REFRESH_MS);
 
   const unread = notices.filter((n) => !n.readAt);
 
