@@ -21,6 +21,7 @@ import httpx
 
 from .alerts import Alert
 from .config import Settings
+from .escalation import Emergency
 from .validation import Reading
 
 
@@ -161,6 +162,77 @@ class Store:
                 for a in alerts
             ],
         )
+
+    async def patient_name(self, patient_id: str) -> str:
+        """The patient's name, for the notice a care team member receives.
+
+        Falls back to a neutral phrase rather than an id. A notification
+        reading "3f2a-… — Fall detected" is one a doctor cannot act on from a
+        lock screen, which is the moment the notification exists for.
+        """
+        response = await self._client.get(
+            "/patient_profiles",
+            params={
+                "id": f"eq.{patient_id}",
+                "select": "users(full_name)",
+                "limit": "1",
+            },
+        )
+        response.raise_for_status()
+
+        rows = response.json()
+        if not rows:
+            return "A patient"
+        return (rows[0].get("users") or {}).get("full_name") or "A patient"
+
+    async def open_emergencies(self, patient_id: str) -> list[dict]:
+        response = await self._client.get(
+            "/emergency_events",
+            params={
+                "patient_id": f"eq.{patient_id}",
+                "status": "in.(NEW,ACKNOWLEDGED,IN_PROGRESS)",
+                "select": "event_type,severity,status",
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def raise_emergency(
+        self,
+        patient_id: str,
+        device_id: str | None,
+        emergency: Emergency,
+        title: str,
+    ) -> str | None:
+        """Raises an emergency and notifies the care team, in one transaction.
+
+        A single RPC rather than two writes, because an event that lands while
+        its fan-out fails is an emergency in a queue that nobody was told
+        about — and nothing about that state looks wrong.
+
+        Returns the event id, or None when an equivalent event is already open.
+        None is not a failure: it is the deduplication the database enforces,
+        reported back so the caller stops instead of retrying into a
+        constraint violation.
+        """
+        response = await self._client.post(
+            "/rpc/raise_emergency",
+            json={
+                "p_patient_id": patient_id,
+                "p_device_id": device_id,
+                "p_event_type": emergency.event_type,
+                "p_severity": emergency.severity,
+                "p_detected_by": emergency.detected_by,
+                "p_title": title,
+                "p_summary": emergency.summary,
+                "p_evidence": emergency.evidence,
+            },
+            headers={"Accept-Profile": "private", "Content-Profile": "private"},
+        )
+        response.raise_for_status()
+
+        event_id = response.json()
+        return event_id if isinstance(event_id, str) else None
 
     async def recent_readings(self, patient_id: str, since) -> list[dict]:
         """Readings for one patient since a cutoff, oldest first."""

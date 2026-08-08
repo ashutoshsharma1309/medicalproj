@@ -18,6 +18,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from ai_engine.prediction.engine import HealthAssessment, analyse_stream  # noqa: E402
 
+from ..escalation import (  # noqa: E402
+    assessment_from_dict,
+    escalations_for,
+    notice_title,
+)
 from ..store import Store  # noqa: E402
 
 logger = logging.getLogger("averis.intelligence")
@@ -42,9 +47,10 @@ class IntelligenceService:
         self, patient_id: str, device_id: str | None = None
     ) -> HealthAssessment:
         assessment = await self.assess_patient(patient_id)
+        payload = assessment.to_dict()
 
         try:
-            await self._store.insert_prediction(patient_id, assessment.to_dict())
+            await self._store.insert_prediction(patient_id, payload)
             if assessment.insights:
                 await self._store.insert_insights(
                     patient_id, device_id, [i.to_dict() for i in assessment.insights]
@@ -53,4 +59,45 @@ class IntelligenceService:
             # Persisting is best-effort; the caller still gets the assessment.
             logger.warning("could not store assessment for patient %s", patient_id)
 
+        await self._escalate(patient_id, device_id, payload)
+
         return assessment
+
+    async def _escalate(
+        self, patient_id: str, device_id: str | None, payload: dict
+    ) -> None:
+        """Raises an emergency when the assessment itself is the finding.
+
+        This is the path the thresholds cannot cover. Every reading in a slow
+        decline can sit inside the normal band, so no alert fires — and the
+        patient still needs someone to look before the trend arrives somewhere
+        that does trip a threshold.
+
+        Attempted even when persisting the assessment failed. The prediction
+        row is a record; the escalation is a person being told, and the second
+        matters more than the first.
+        """
+        try:
+            candidates = escalations_for(
+                assessment=assessment_from_dict(payload),
+                open_events=await self._store.open_emergencies(patient_id),
+            )
+            if not candidates:
+                return
+
+            name = await self._store.patient_name(patient_id)
+
+            for emergency in candidates:
+                event_id = await self._store.raise_emergency(
+                    patient_id, device_id, emergency, notice_title(emergency, name)
+                )
+                if event_id is not None:
+                    logger.info(
+                        "AI escalated %s for patient %s", emergency.event_type, patient_id
+                    )
+        except Exception:  # noqa: BLE001
+            logger.error(
+                "AI escalation failed for patient %s — care team not notified",
+                patient_id,
+                exc_info=True,
+            )
