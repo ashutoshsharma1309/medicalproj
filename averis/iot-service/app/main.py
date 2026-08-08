@@ -1,6 +1,8 @@
 """AVERIS IoT ingest service.
 
-    POST /api/device/data     an ESP32 (or the simulator) reports a reading
+    POST /api/device/upload   an ESP32 (or the simulator) reports a reading
+    POST /api/device/data     the same thing, under its original name
+    POST /api/device/hello    a band announces itself and collects server time
     WS   /api/live            a dashboard subscribes to its own patient's stream
     GET  /api/health/live     is the process up
     GET  /api/health/ready    can it reach the database
@@ -31,6 +33,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings, load_settings
 from .hub import ConnectionHub
+from .telemetry import parse_telemetry
 from .services.intelligence_service import IntelligenceService
 from .services.sensor_processing_service import (
     ProcessingError,
@@ -119,9 +122,17 @@ def _bearer(header: str | None) -> str | None:
 
 
 # ------------------------------------------------------------------ ingest
+@app.post("/api/device/upload")
 @app.post("/api/device/data")
 async def ingest(request: Request, authorization: str | None = Header(default=None)):
-    """Routing only. The pipeline lives in SensorProcessingService."""
+    """Routing only. The pipeline lives in SensorProcessingService.
+
+    Two paths, one handler. `/api/device/data` has been the endpoint since
+    Phase 1 and `/api/device/upload` is the name the hardware brief specifies;
+    both are kept because the alternative is a flag day across every band
+    already flashed, and a band in the field cannot be told to use a new URL.
+    Aliasing costs one decorator. Renaming costs a fleet.
+    """
     settings: Settings = _state["settings"]
     processing: SensorProcessingService = _state["processing"]
     store: Store = _state["store"]
@@ -161,8 +172,81 @@ async def ingest(request: Request, authorization: str | None = Header(default=No
             "status": "accepted",
             "reading_id": processed.reading_id,
             "alerts_raised": len(processed.alerts),
+            "emergencies_raised": len(processed.emergencies),
+            # Echoed so the band can show its own round-trip time on the OLED
+            # during a bench test, without an engineer needing the dashboard.
+            "server_time": int(time.time()),
         },
         status_code=201,
+    )
+
+
+@app.post("/api/device/hello")
+async def hello(request: Request, authorization: str | None = Header(default=None)):
+    """A band announcing itself at boot.
+
+    Three jobs, and each is the answer to a real problem:
+
+    **Verification.** The band learns whether its token is accepted *before* it
+    starts streaming, so the OLED can say "Verified" rather than the wearer
+    discovering hours later that nothing was recorded. A 401 here is the same
+    401 an uplink would get, delivered when someone is still holding the band.
+
+    **The clock.** An ESP32 has no RTC across a power cycle. Without a time
+    source every reading it stamps would sit at the epoch, sorting before every
+    reading the patient has ever produced. NTP would work and adds a second
+    network dependency; the server is already there and is the clock the
+    readings will be compared against anyway.
+
+    **Cadence.** The uplink interval comes back from the server, so a fleet can
+    be slowed down — for load, for battery, for a ward that does not need 0.5 Hz
+    — without reflashing bands that are on people's wrists.
+
+    Deliberately returns nothing about the patient. A device credential
+    identifies a device; it is not a key to the record of whoever is wearing it,
+    and a handshake that answered with a name would make it one.
+    """
+    store: Store = _state["store"]
+
+    token = _bearer(authorization)
+    if not token:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    device = await store.resolve_device(token)
+    if device is None:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    try:
+        body = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        body = {}
+
+    # The payload names a device; the token proves one. Same rule as ingest.
+    claimed = body.get("device_id") if isinstance(body, dict) else None
+    if isinstance(claimed, str) and claimed.strip().upper() != device.device_key.upper():
+        return JSONResponse({"error": "device_mismatch"}, status_code=403)
+
+    settings: Settings = _state["settings"]
+    telemetry = parse_telemetry(body if isinstance(body, dict) else {})
+
+    try:
+        await store.record_boot(device, telemetry)
+    except Exception:  # noqa: BLE001
+        # A boot nobody recorded is a gap in an engineering log. Refusing the
+        # handshake over it would stop a working band from starting.
+        logger.warning("could not record boot for device %s", device.device_id)
+
+    return JSONResponse(
+        {
+            "status": "ok",
+            "verified": True,
+            "device_key": device.device_key,
+            "device_name": device.device_name,
+            "is_simulated": device.is_simulated,
+            "server_time": int(time.time()),
+            "uplink_interval_ms": settings.uplink_interval_ms,
+        },
+        status_code=200,
     )
 
 

@@ -22,6 +22,7 @@ import httpx
 from .alerts import Alert
 from .config import Settings
 from .escalation import Emergency
+from .telemetry import Telemetry, latency_ms
 from .validation import Reading
 
 
@@ -32,6 +33,10 @@ class Device:
     device_key: str
     device_name: str
     status: str
+    # Provenance. Read from the device row rather than trusted from the
+    # payload, for exactly the same reason `patient_id` is: a simulator that
+    # could declare itself real would defeat the flag's only purpose.
+    is_simulated: bool = False
 
 
 def hash_token(token: str) -> str:
@@ -83,6 +88,11 @@ class Store:
             device_key=row["device_key"],
             device_name=row["device_name"],
             status=row["status"],
+            # Absent until the Phase 5 migration widens resolve_device; a
+            # device with no flag is treated as real, which is the safe
+            # default — mislabelling measured data as simulated would be worse
+            # than the reverse.
+            is_simulated=bool(row.get("is_simulated", False)),
         )
 
     async def insert_reading(self, device: Device, reading: Reading) -> int:
@@ -100,6 +110,9 @@ class Store:
                 "temperature": reading.temperature,
                 "movement_status": reading.movement_status,
                 "battery_percentage": reading.battery_percentage,
+                # Fixed at write time. A chart drawn today must not change
+                # meaning because a device was reclassified in June.
+                "is_simulated": device.is_simulated,
                 "recorded_at": reading.recorded_at.isoformat(),
             },
             headers={"Prefer": "return=representation"},
@@ -107,25 +120,131 @@ class Store:
         response.raise_for_status()
         return int(response.json()[0]["id"])
 
-    async def touch_device(self, device: Device, reading: Reading) -> None:
+    async def touch_device(
+        self,
+        device: Device,
+        reading: Reading,
+        telemetry: Telemetry | None = None,
+    ) -> None:
         """Marks the device online and records what it last reported.
 
         Best-effort: a failure here costs a stale battery indicator, while the
         reading it accompanies is already stored. Raising would discard a good
         measurement over a status field.
+
+        Telemetry rides along on the same PATCH rather than in a second
+        request. At one uplink every two seconds per band, a separate write
+        would double the fleet's load on the database to keep a signal-strength
+        number fresh.
         """
         payload: dict[str, Any] = {
             "connection_status": "ONLINE",
             "last_connected_at": datetime.now(timezone.utc).isoformat(),
             "last_reading_at": reading.recorded_at.isoformat(),
+            "last_latency_ms": latency_ms(reading.recorded_at),
         }
         if reading.battery_percentage is not None:
             payload["battery_percentage"] = reading.battery_percentage
+
+        if telemetry is not None and not telemetry.is_empty():
+            if telemetry.rssi_dbm is not None:
+                payload["signal_strength_dbm"] = telemetry.rssi_dbm
+            if telemetry.uptime_seconds is not None:
+                payload["uptime_seconds"] = telemetry.uptime_seconds
+            if telemetry.boot_count is not None:
+                payload["boot_count"] = telemetry.boot_count
+            if telemetry.firmware_version:
+                payload["firmware_version"] = telemetry.firmware_version
+            if telemetry.hardware_revision:
+                payload["hardware_revision"] = telemetry.hardware_revision
+            if telemetry.transport:
+                payload["transport"] = telemetry.transport
+            if telemetry.buffered is not None:
+                payload["buffered_readings"] = telemetry.buffered
+            if telemetry.sensors:
+                payload["sensor_health"] = telemetry.sensors
 
         await self._client.patch(
             "/iot_devices",
             params={"id": f"eq.{device.device_id}"},
             json=payload,
+        )
+
+    async def record_boot(self, device: Device, telemetry: Telemetry) -> None:
+        """Marks a band as having just started, and says so in its event log.
+
+        A boot is the one device event worth writing unconditionally rather
+        than on change: it is the moment a monitoring gap either ends or is
+        explained, and a band that reboots hourly is a hardware fault that
+        looks like intermittent connectivity until someone can see the boots.
+        """
+        payload: dict[str, Any] = {
+            "connection_status": "ONLINE",
+            "last_boot_at": datetime.now(timezone.utc).isoformat(),
+            "last_connected_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if telemetry.firmware_version:
+            payload["firmware_version"] = telemetry.firmware_version
+        if telemetry.hardware_revision:
+            payload["hardware_revision"] = telemetry.hardware_revision
+        if telemetry.boot_count is not None:
+            payload["boot_count"] = telemetry.boot_count
+
+        await self._client.patch(
+            "/iot_devices",
+            params={"id": f"eq.{device.device_id}"},
+            json=payload,
+        )
+
+        await self.insert_device_events(
+            device,
+            [(
+                "BOOT",
+                f"{telemetry.hardware_revision or 'device'} started"
+                + (f" on firmware {telemetry.firmware_version}" if telemetry.firmware_version else ""),
+                {"boot_count": telemetry.boot_count} if telemetry.boot_count is not None else {},
+            )],
+        )
+
+    async def device_snapshot(self, device_id: str) -> dict:
+        """The device row as it stands, for change detection."""
+        response = await self._client.get(
+            "/iot_devices",
+            params={
+                "id": f"eq.{device_id}",
+                "select": "sensor_health,firmware_version,boot_count,connection_status",
+                "limit": "1",
+            },
+        )
+        response.raise_for_status()
+        rows = response.json()
+        return rows[0] if rows else {}
+
+    async def insert_device_events(
+        self, device: Device, events: list[tuple[str, str, dict]]
+    ) -> None:
+        """Writes what the band *did*, as opposed to what it measured.
+
+        Best-effort like every other diagnostic write here: a band whose boot
+        was not recorded is a gap in an engineering log, and failing the
+        reading over it would trade a patient's measurement for a note about
+        the hardware.
+        """
+        if not events:
+            return
+
+        await self._client.post(
+            "/device_events",
+            json=[
+                {
+                    "device_id": device.device_id,
+                    "patient_id": device.patient_id,
+                    "kind": kind,
+                    "detail": detail,
+                    "metadata": metadata,
+                }
+                for kind, detail, metadata in events
+            ],
         )
 
     async def open_alerts(self, patient_id: str) -> list[dict]:

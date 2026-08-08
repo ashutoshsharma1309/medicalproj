@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from ..alerts import Alert, evaluate_reading, should_raise
 from ..escalation import Emergency, escalations_for, notice_title
 from ..store import Device, Store
+from ..telemetry import Telemetry, parse_telemetry, sensor_faults
 from ..validation import Reading, validate_reading
 
 logger = logging.getLogger("averis.processing")
@@ -50,6 +51,7 @@ class ProcessedReading:
     reading: Reading
     alerts: list[Alert]
     emergencies: list[Emergency] = field(default_factory=list)
+    telemetry: Telemetry = field(default_factory=Telemetry)
 
     def to_event(self) -> dict:
         """The shape pushed to a dashboard socket."""
@@ -85,7 +87,13 @@ class SensorProcessingService:
     async def process(self, token: str | None, body: object) -> ProcessedReading:
         device = await self._authenticate(token)
         reading = self._validate(body, device)
-        reading_id = await self._persist(device, reading)
+
+        # Parsed before persistence and used after it. Telemetry never decides
+        # whether a reading is stored: a firmware bug in a diagnostic field
+        # must not be able to stop a patient being monitored.
+        telemetry = parse_telemetry(body)
+
+        reading_id = await self._persist(device, reading, telemetry)
         alerts = await self._evaluate(device, reading, reading_id)
         emergencies = await self._escalate(device, alerts)
 
@@ -95,6 +103,7 @@ class SensorProcessingService:
             reading=reading,
             alerts=alerts,
             emergencies=emergencies,
+            telemetry=telemetry,
         )
 
     # ------------------------------------------------------------- steps
@@ -127,18 +136,84 @@ class SensorProcessingService:
 
         return reading
 
-    async def _persist(self, device: Device, reading: Reading) -> int:
+    async def _persist(
+        self, device: Device, reading: Reading, telemetry: Telemetry
+    ) -> int:
         # The single point at which an owner enters the write path.
         reading_id = await self._store.insert_reading(device, reading)
 
         try:
-            await self._store.touch_device(device, reading)
+            # Read before the write so a change can be detected. One extra
+            # query per uplink, which is the price of knowing *when* a sensor
+            # broke rather than only that it is broken now.
+            previous = (
+                await self._store.device_snapshot(device.device_id)
+                if not telemetry.is_empty()
+                else {}
+            )
+
+            await self._store.touch_device(device, reading, telemetry)
+
+            if previous:
+                await self._record_changes(device, previous, telemetry)
         except Exception:  # noqa: BLE001
             # Status is a convenience; the measurement is the record. Losing a
             # battery indicator must not lose a vital sign.
             logger.warning("could not update device status for %s", device.device_id)
 
         return reading_id
+
+    async def _record_changes(
+        self, device: Device, previous: dict, telemetry: Telemetry
+    ) -> None:
+        """Writes a device event when something about the hardware changed.
+
+        On change only. A band uplinks every two seconds, and an event per
+        uplink would be a second readings-sized table describing a sensor that
+        has been fine all day.
+        """
+        events: list[tuple[str, str, dict]] = []
+
+        was = previous.get("sensor_health") or {}
+        broke, recovered = sensor_faults(was, telemetry.sensors)
+
+        for name in broke:
+            events.append(("SENSOR_FAULT", f"{name} stopped reporting usable values", {"sensor": name}))
+        for name in recovered:
+            events.append(("SENSOR_RECOVERED", f"{name} is reporting again", {"sensor": name}))
+
+        # A boot count that moved means the band restarted. Worth recording
+        # because a band that reboots hourly is a hardware fault presenting as
+        # a monitoring gap, and the gap alone does not say which.
+        if telemetry.boot_count is not None:
+            before = previous.get("boot_count")
+            if before is not None and telemetry.boot_count > before:
+                events.append(
+                    ("BOOT", f"restarted (boot {telemetry.boot_count})", {"boot_count": telemetry.boot_count})
+                )
+
+        if telemetry.firmware_version and previous.get("firmware_version") not in (
+            None,
+            telemetry.firmware_version,
+        ):
+            events.append(
+                (
+                    "FIRMWARE_CHANGED",
+                    f"{previous.get('firmware_version')} → {telemetry.firmware_version}",
+                    {"from": previous.get("firmware_version"), "to": telemetry.firmware_version},
+                )
+            )
+
+        # The band is holding readings it could not deliver. Distinct from
+        # "offline": the data is not lost yet, and whoever is looking should
+        # know the difference.
+        if telemetry.buffered is not None and telemetry.buffered > 0:
+            events.append(
+                ("BUFFER_OVERFLOW", f"{telemetry.buffered} readings held offline", {"buffered": telemetry.buffered})
+            )
+
+        if events:
+            await self._store.insert_device_events(device, events[:8])
 
     async def _evaluate(
         self, device: Device, reading: Reading, reading_id: int

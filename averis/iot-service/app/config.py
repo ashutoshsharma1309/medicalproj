@@ -40,6 +40,9 @@ class Settings:
     # Ingest is per-device; a misbehaving device must not be able to spend the
     # whole fleet's budget.
     max_readings_per_minute: int
+    # Handed to every band at boot, so a ward can be slowed down without
+    # reflashing hardware that is already on people's wrists.
+    uplink_interval_ms: int
     cors_origins: tuple[str, ...]
 
     @property
@@ -55,5 +58,6 @@ def load_settings() -> Settings:
         service_role_key=_required("SUPABASE_SERVICE_ROLE_KEY"),
         log_level=_optional("LOG_LEVEL", "info"),
         max_readings_per_minute=int(_optional("MAX_READINGS_PER_MINUTE", "60")),
+        uplink_interval_ms=int(_optional("UPLINK_INTERVAL_MS", "2000")),
         cors_origins=tuple(o.strip() for o in origins.split(",") if o.strip()),
     )
