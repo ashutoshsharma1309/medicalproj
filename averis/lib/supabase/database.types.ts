@@ -1026,6 +1026,10 @@ export type Database = {
           verified: boolean;
         }[];
       };
+      care_patient_directory: {
+        Args: Record<never, never>;
+        Returns: { patient_id: string; full_name: string | null }[];
+      };
       invite_caregiver: {
         Args: {
           p_email: string;
