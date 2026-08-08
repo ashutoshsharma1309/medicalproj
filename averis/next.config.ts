@@ -71,6 +71,15 @@ function contentSecurityPolicy(): string {
   // *is* derived — from configuration, never wildcarded.
   const supabaseSocket = supabase ? supabase.replace(/^http/, "ws") : "";
 
+  // The demonstration's "Simulate emergency" button POSTs readings to the
+  // ingest service from the browser, exactly as a band does. Without this the
+  // CSP blocks that fetch — and it would fail in production while working in
+  // development, which is the worst place for a header to differ.
+  //
+  // Only the origin is allowed, not the path: a CSP source is an origin, and
+  // writing the full URL here silently widens it to the whole host anyway.
+  const iotHttp = originOf(process.env.NEXT_PUBLIC_IOT_HTTP_URL);
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -86,9 +95,25 @@ function contentSecurityPolicy(): string {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "worker-src 'self' blob:",
-    `connect-src 'self' ${[supabase, supabaseSocket, iotSocket].filter(Boolean).join(" ")}`.trim(),
+    `connect-src 'self' ${[supabase, supabaseSocket, iotSocket, iotHttp].filter(Boolean).join(" ")}`.trim(),
     "upgrade-insecure-requests",
   ].join("; ");
+}
+
+/**
+ * The origin of a configured URL, or "" when it is unset or unparseable.
+ *
+ * Unparseable resolves to nothing rather than throwing: a typo in an
+ * environment variable should not stop the server booting, and a missing CSP
+ * source fails visibly at the one feature that needs it.
+ */
+function originOf(url: string | undefined): string {
+  if (!url) return "";
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
 }
 
 export default nextConfig;
