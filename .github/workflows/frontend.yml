@@ -1,0 +1,114 @@
+# =============================================================================
+# AVERIS — web application
+#
+# Types, unit tests, the firmware's host-run logic checks, a production build,
+# and a scan for committed credentials.
+# =============================================================================
+
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "averis/app/**"
+      - "averis/components/**"
+      - "averis/lib/**"
+      - "averis/firmware/**"
+      - "averis/package*.json"
+      - "averis/next.config.ts"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "averis/app/**"
+      - "averis/components/**"
+      - "averis/lib/**"
+      - "averis/firmware/**"
+      - "averis/package*.json"
+      - "averis/next.config.ts"
+      - ".github/workflows/frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: averis
+
+jobs:
+  verify:
+    name: Types, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: averis/package-lock.json
+
+      # --ignore-scripts: nothing here needs a postinstall, and allowing them
+      # lets any transitive dependency execute code in CI.
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # Every suite runs without a database, a network or an API key. That is a
+      # property of the design, and asserting it here keeps it true.
+      - name: Unit tests
+        run: npm test
+
+      # The firmware's decision logic, compiled with the runner's own compiler.
+      # This is why those headers carry no Arduino symbols.
+      - name: Firmware logic tests
+        run: ./firmware/averis-wearable/test/run.sh
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-time-placeholder
+        run: npm run build
+
+  security:
+    name: Dependency and secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: averis/package-lock.json
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # Not `npm audit --audit-level=high`, which fails forever: two of our
+      # dependencies carry high advisories with no fixed release at any version.
+      # A gate that always fails is one people delete. This one blocks on every
+      # critical, and on any high not argued for in the script — so a *new*
+      # advisory still stops the build. See scripts/audit-gate.mjs.
+      - name: Dependency audit
+        run: node scripts/audit-gate.mjs
+
+      - name: Verify no credentials are committed
+        working-directory: .
+        run: |
+          # The shapes of the keys this project actually uses, rather than a
+          # generic entropy scan that fires on every hash.
+          if git grep -nE '(gsk_[A-Za-z0-9]{20,}|xai-[A-Za-z0-9]{20,}|sb_secret_|service_role.*eyJ|avd_[A-Za-z0-9_-]{24,})' \
+               -- ':!*.example' ':!.github/workflows/*' ':!*.md'; then
+            echo "::error::A credential-shaped string is committed. Rotate it and remove it from history."
+            exit 1
+          fi
+          echo "No credential patterns found."
