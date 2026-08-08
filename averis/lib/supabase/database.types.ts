@@ -71,6 +71,25 @@ export type RiskCategoryEnum = "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
 
 export type KnowledgeSourceType = "PATIENT_DOCUMENT" | "MEDICAL_KNOWLEDGE";
 
+/* ------------------------------------------- Care team (IoT Phase 4) */
+
+export type AssignmentStatus = "ACTIVE" | "PENDING" | "REVOKED";
+export type CaregiverPermission = "VIEW_ALERTS" | "VIEW_VITALS" | "FULL";
+export type EmergencyType =
+  | "FALL_DETECTED"
+  | "SEVERE_HYPOXIA"
+  | "EXTREME_HEART_RATE"
+  | "RAPID_DETERIORATION"
+  | "DEVICE_LOST"
+  | "MANUAL_ESCALATION";
+export type EmergencyStatus =
+  | "NEW"
+  | "ACKNOWLEDGED"
+  | "IN_PROGRESS"
+  | "RESOLVED"
+  | "DISMISSED";
+export type DetectedBy = "RULE_ENGINE" | "AI_ENGINE" | "PATIENT" | "CLINICIAN";
+
 export type InsightKindEnum =
   | "TREND_DECLINE"
   | "TREND_RISE"
@@ -540,6 +559,121 @@ export type Database = {
         // Plan changes come from billing, which does not run as the user.
         Insert: Record<never, never>;
         Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      doctors: {
+        Row: {
+          id: string;
+          user_id: string;
+          full_name: string;
+          specialization: string | null;
+          hospital_name: string | null;
+          license_number: string;
+          verified_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          full_name: string;
+          specialization?: string | null;
+          hospital_name?: string | null;
+          license_number: string;
+        };
+        Update: {
+          full_name?: string;
+          specialization?: string | null;
+          hospital_name?: string | null;
+        };
+        Relationships: [];
+      };
+
+      patient_doctor_assignments: {
+        Row: {
+          id: string;
+          patient_id: string;
+          doctor_id: string;
+          status: AssignmentStatus;
+          assigned_at: string;
+          revoked_at: string | null;
+          assigned_by: string | null;
+          note: string | null;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          doctor_id: string;
+          status?: AssignmentStatus;
+          assigned_by?: string | null;
+          note?: string | null;
+        };
+        Update: {
+          status?: AssignmentStatus;
+          revoked_at?: string | null;
+          note?: string | null;
+        };
+        Relationships: [];
+      };
+
+      patient_caregiver_assignments: {
+        Row: {
+          id: string;
+          patient_id: string;
+          caregiver_id: string;
+          relationship: string | null;
+          permission_level: CaregiverPermission;
+          status: AssignmentStatus;
+          assigned_at: string;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          caregiver_id: string;
+          relationship?: string | null;
+          permission_level?: CaregiverPermission;
+          status?: AssignmentStatus;
+        };
+        Update: {
+          permission_level?: CaregiverPermission;
+          status?: AssignmentStatus;
+          revoked_at?: string | null;
+        };
+        Relationships: [];
+      };
+
+      emergency_events: {
+        Row: {
+          id: string;
+          patient_id: string;
+          device_id: string | null;
+          alert_id: string | null;
+          event_type: EmergencyType;
+          severity: AlertSeverityEnum;
+          detected_by: DetectedBy;
+          status: EmergencyStatus;
+          summary: string;
+          evidence: unknown;
+          acknowledged_by: string | null;
+          acknowledged_at: string | null;
+          resolved_by: string | null;
+          resolved_at: string | null;
+          resolution_note: string | null;
+          created_at: string;
+        };
+        // Raised by the engine, which runs as the service role. A user who
+        // could insert one could also raise a false emergency.
+        Insert: Record<never, never>;
+        Update: {
+          status?: EmergencyStatus;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+          resolution_note?: string | null;
+        };
         Relationships: [];
       };
 
