@@ -10,6 +10,8 @@ import { listReports } from "@/lib/care/report-service";
 import { EmergencyActions } from "./EmergencyActions";
 import { ReportPanel } from "./ReportPanel";
 import { AssistantPanel } from "./AssistantPanel";
+import { ClinicalTrends } from "./ClinicalTrends";
+import type { SeriesPoint } from "@/lib/iot/series";
 
 export const metadata = { title: "Patient" };
 export const dynamic = "force-dynamic";
@@ -64,7 +66,10 @@ export default async function ClinicalPatientPage(props: {
       .select("heart_rate, spo2, temperature, movement_status, recorded_at")
       .eq("patient_id", patientId)
       .order("recorded_at", { ascending: false })
-      .limit(30),
+      // Enough to draw a week's shape after downsampling. The table below
+      // still shows only the newest rows — a clinician reading 400 lines of
+      // sensor output is reading the chart, not the patient.
+      .limit(400),
     supabase
       .from("ai_insights")
       .select("id, insight_type, message, severity, created_at")
@@ -88,6 +93,17 @@ export default async function ClinicalPatientPage(props: {
   const open = (emergencies.data ?? []).filter((e) =>
     ["NEW", "ACKNOWLEDGED", "IN_PROGRESS"].includes(e.status),
   );
+
+  // Oldest first: a chart drawing left to right needs its input in draw order,
+  // so the component never sorts during render.
+  const series: SeriesPoint[] = (readings.data ?? [])
+    .map((r) => ({
+      t: new Date(r.recorded_at).getTime(),
+      heartRate: r.heart_rate,
+      spo2: r.spo2,
+      temperature: r.temperature,
+    }))
+    .sort((a, b) => a.t - b.t);
 
   const risk: RiskPayload | null = prediction
     ? {
@@ -222,6 +238,17 @@ export default async function ClinicalPatientPage(props: {
 
       <Card>
         <CardHeader
+          eyebrow="Trends"
+          title="Health trends"
+          action={
+            <span className="mono text-[12.5px] text-muted">from the stored record</span>
+          }
+        />
+        <ClinicalTrends points={series} />
+      </Card>
+
+      <Card>
+        <CardHeader
           eyebrow="Assistant"
           title="Ask about this patient"
           action={
@@ -244,7 +271,7 @@ export default async function ClinicalPatientPage(props: {
           title="Recent readings"
           action={
             <span className="mono text-[12.5px] text-muted">
-              {(readings.data ?? []).length} shown
+              newest 30 of {(readings.data ?? []).length}
             </span>
           }
         />
@@ -263,7 +290,7 @@ export default async function ClinicalPatientPage(props: {
               </tr>
             </thead>
             <tbody>
-              {(readings.data ?? []).map((r, i) => (
+              {(readings.data ?? []).slice(0, 30).map((r, i) => (
                 <tr key={i} className="border-b border-rule last:border-0">
                   <td className="mono px-6 py-2">{formatDate(r.recorded_at)}</td>
                   <td className="mono px-6 py-2">{r.heart_rate ?? "—"}</td>
