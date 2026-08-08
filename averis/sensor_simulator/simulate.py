@@ -64,6 +64,28 @@ class VitalSign:
         return round(self.value, self.precision)
 
 
+# ── Modes ──────────────────────────────────────────────────────────────────
+#
+# Three words for the three things anyone actually wants to demonstrate, mapped
+# onto the scenarios below. `--scenario` still exists for finer control; this
+# is the layer that means nobody has to know that "critical" is the one that
+# trips an emergency.
+#
+# The mapping is not cosmetic — each mode is chosen to exercise a *different
+# code path* end to end:
+#
+#   normal     nothing fires. The scenario that proves the alerting path is
+#              not triggering on noise, which is the harder half to verify.
+#   warning    threshold alerts raise and stay alerts. Nothing escalates,
+#              because a WARNING is deliberately not an emergency.
+#   emergency  crosses the critical thresholds, so an emergency event is
+#              raised, the care team is notified, and the doctor's queue moves.
+MODES = {
+    "normal": "resting",
+    "warning": "deteriorating",
+    "emergency": "critical",
+}
+
 SCENARIOS = {
     # ── Normal mode ─────────────────────────────────────────────────────────
     # An ordinary resting adult. Nothing here should trip an alert, which makes
@@ -203,7 +225,18 @@ def main() -> int:
     parser.add_argument("--device-key", required=True, help="Device key, e.g. AVR001")
     parser.add_argument("--url", default="http://localhost:8000/api/device/upload")
     parser.add_argument("--interval", type=float, default=2.0, help="Seconds between readings")
-    parser.add_argument("--scenario", choices=sorted(SCENARIOS), default="resting")
+    parser.add_argument(
+        "--mode",
+        choices=sorted(MODES),
+        default=None,
+        help="normal | warning | emergency — the three demonstrable states",
+    )
+    parser.add_argument(
+        "--scenario",
+        choices=sorted(SCENARIOS),
+        default=None,
+        help="Finer control than --mode (resting, walking, running, deteriorating, critical)",
+    )
     parser.add_argument("--count", type=int, default=0, help="Readings to send; 0 means run until stopped")
     parser.add_argument("--seed", type=int, default=None, help="Seed for a reproducible series")
     parser.add_argument(
@@ -230,13 +263,20 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.mode and args.scenario:
+        parser.error("Use --mode or --scenario, not both.")
+
+    # Defaults to the state that proves the alerting path is quiet when it
+    # should be. A simulator whose default output raises alerts trains whoever
+    # is watching to ignore them.
+    scenario_name = args.scenario or MODES[args.mode or "normal"]
     rng = random.Random(args.seed)
-    scenario = SCENARIOS[args.scenario]
+    scenario = SCENARIOS[scenario_name]
     battery = 100.0
 
-    print(f"AVERIS sensor simulator — SIMULATED DATA, not clinical measurements")
+    print("AVERIS sensor simulator — SIMULATED DATA, not clinical measurements")
     print(f"  device   {args.device_key}")
-    print(f"  scenario {args.scenario}")
+    print(f"  scenario {scenario_name}" + (f"  (--mode {args.mode})" if args.mode else ""))
     print(f"  target   {args.url}")
     print(f"  interval {args.interval}s")
     if args.break_sensor:

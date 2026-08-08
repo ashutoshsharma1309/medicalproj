@@ -53,22 +53,26 @@ export async function listMyDoctors(
 
   if (!data || data.length === 0) return [];
 
-  // Only ACTIVE assignments make the doctor's profile readable — that is what
-  // the `doctors` policy says. So a revoked entry keeps its dates and loses its
-  // name, which is the honest rendering: the patient withdrew access, and the
-  // clinician's details stopped being theirs to see.
-  const { data: profiles } = await supabase
-    .from("doctors")
-    .select("id, full_name, specialization, hospital_name");
+  // Two sources, because they answer different halves. `doctors` carries the
+  // speciality and hospital and is readable only for ACTIVE assignments; the
+  // directory RPC carries the name for every assignment including revoked
+  // ones, so a withdrawn entry still says who it was.
+  const [{ data: profiles }, { data: directory }] = await Promise.all([
+    supabase.from("doctors").select("id, full_name, specialization, hospital_name"),
+    supabase.rpc("my_care_team_directory"),
+  ]);
 
   const byId = new Map((profiles ?? []).map((d) => [d.id, d]));
+  const nameByUserId = new Map(
+    (directory ?? []).filter((r) => r.care_role === "DOCTOR").map((r) => [r.user_id, r.full_name]),
+  );
 
   return data.map((row) => {
     const doctor = byId.get(row.doctor_id);
     return {
       assignmentId: row.id,
       doctorId: row.doctor_id,
-      fullName: doctor?.full_name ?? "Clinician",
+      fullName: doctor?.full_name ?? nameByUserId.get(row.doctor_id) ?? "Clinician",
       specialization: doctor?.specialization ?? null,
       hospitalName: doctor?.hospital_name ?? null,
       status: row.status,
@@ -90,16 +94,19 @@ export async function listMyCaregivers(
 
   if (!data || data.length === 0) return [];
 
-  // A patient can read the `users` row of someone they made a caregiver only
-  // through the identity policy, which runs the other way round. So the name
-  // may be absent, and the email the patient typed is what identifies the row
-  // to them anyway.
-  const { data: people } = await supabase
-    .from("users")
-    .select("id, full_name, email")
-    .in("id", data.map((row) => row.caregiver_id));
+  // Through the directory RPC, not a `users` select. The identity policy on
+  // `users` runs the other way round — it lets a care team member read the
+  // patient — so this select returned nothing and every caregiver rendered as
+  // an unnamed "Caregiver". A patient looking at two identical unnamed rows
+  // cannot revoke the right one, which makes the consent page unusable for the
+  // one thing it exists to do.
+  const { data: directory } = await supabase.rpc("my_care_team_directory");
 
-  const byId = new Map((people ?? []).map((u) => [u.id, u]));
+  const byId = new Map(
+    (directory ?? [])
+      .filter((row) => row.care_role === "CAREGIVER")
+      .map((row) => [row.user_id, { full_name: row.full_name, email: row.email }]),
+  );
 
   return data.map((row) => {
     const person = byId.get(row.caregiver_id);

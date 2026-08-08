@@ -203,9 +203,12 @@ $$;
 -- --------------------------------- the caregiver identity regression (4c)
 do $$
 declare
-  visible int;
-  named   int;
+  visible        int;
+  named          int;
+  ananya_profile uuid;
 begin
+  select p.id into ananya_profile from public.patient_profiles p
+    join public.users u on u.id = p.user_id where u.email = 'ananya@example.com';
   -- VIEW_ALERTS: the narrowest grant, and the one that was broken. The
   -- caregiver could see the emergency and not the name of the person it was
   -- about, so their watchlist rendered as a list of UUIDs.
@@ -241,13 +244,27 @@ begin
   end if;
   raise notice 'PASS  VIEW_VITALS stops short of the medical record';
 
-  -- Somebody with no relationship to anyone resolves nothing.
+  -- Another patient resolves themselves and nobody else.
+  --
+  -- The first version of this asserted zero, and failed: the directory is
+  -- built on can_see_patient_alerts(), which includes "you are that patient".
+  -- Rahul resolving his own name is correct — what would be a leak is Rahul
+  -- resolving Ananya's, and that is what this now asserts.
   set local request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
-  select count(*) into named from public.care_patient_directory();
+
+  select count(*) into named
+  from public.care_patient_directory() d
+  where d.patient_id = ananya_profile;
   if named <> 0 then
-    raise exception 'FAIL: an unrelated user resolved % patient name(s)', named;
+    raise exception 'FAIL: an unrelated patient resolved Ananya''s name';
   end if;
-  raise notice 'PASS  the directory returns nothing to someone with no care relationship';
+  raise notice 'PASS  the directory does not leak a patient to an unrelated user';
+
+  select count(*) into named from public.care_patient_directory();
+  if named <> 1 then
+    raise exception 'FAIL: a patient resolves % names, expected only their own', named;
+  end if;
+  raise notice 'PASS  a patient resolves their own name and no other';
 
   reset role;
 end
@@ -259,6 +276,7 @@ declare
   ananya_profile uuid;
   rahul_profile  uuid;
   doctor_user    uuid;
+  other_user     uuid;
   visible        int;
   affected       int;
 begin
@@ -267,6 +285,13 @@ begin
   select p.id into rahul_profile from public.patient_profiles p
     join public.users u on u.id = p.user_id where u.email = 'rahul@example.com';
   select id into doctor_user from public.users where email = 'doctor@example.com';
+
+  -- Resolved here, as the owner, and not inside the doctor's session below.
+  -- The first version selected it in the INSERT itself — and the doctor cannot
+  -- read the caregiver's user row, so the subquery returned nothing, the
+  -- insert wrote zero rows, and the WITH CHECK it was written to exercise was
+  -- never evaluated. A test that inserts nothing passes for the wrong reason.
+  select id into other_user from public.users where email = 'caregiver@example.com';
 
   set local role authenticated;
   set local request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
@@ -292,8 +317,8 @@ begin
   begin
     insert into public.patient_health_reports
       (patient_id, generated_by, period_start, period_end, summary)
-    select ananya_profile, u.id, now() - interval '1 day', now(), 'attributed to someone else'
-    from public.users u where u.email = 'caregiver@example.com';
+    values (ananya_profile, other_user, now() - interval '1 day', now(),
+            'attributed to someone else');
     raise exception 'FAIL: a summary was attributed to another user';
   exception when insufficient_privilege then
     raise notice 'PASS  a summary must be written in the author''s own name';
@@ -408,14 +433,41 @@ $$;
 -- --------------------------------------------------- caregiver revocation
 do $$
 declare
-  visible int;
+  visible        int;
+  daughter_user  uuid;
+  revoked        int;
 begin
+  -- Resolved as the owner. Inside the patient's session this subquery returned
+  -- nothing — a patient could not read the `users` row of their own caregiver
+  -- — so the UPDATE matched zero rows and the assertion below "failed" against
+  -- a caregiver who had never actually been revoked.
+  --
+  -- That was a real defect, not just a test bug: /care-team rendered every
+  -- caregiver as an unnamed "Caregiver", and a patient cannot revoke the right
+  -- one of two identical rows. Fixed by my_care_team_directory() in
+  -- 20260809094500.
+  select id into daughter_user from public.users where email = 'daughter@example.com';
+
   set local role authenticated;
   set local request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 
+  -- The patient can now see who they granted access to.
+  select count(*) into visible from public.my_care_team_directory()
+   where user_id = daughter_user;
+  if visible <> 1 then
+    raise exception 'FAIL: a patient cannot identify their own caregiver';
+  end if;
+  raise notice 'PASS  a patient can see who they granted access to';
+
   update public.patient_caregiver_assignments
      set status = 'REVOKED', revoked_at = now()
-   where caregiver_id = (select id from public.users where email = 'daughter@example.com');
+   where caregiver_id = daughter_user;
+  get diagnostics revoked = row_count;
+
+  if revoked <> 1 then
+    raise exception 'FAIL: revocation matched % rows — the test would pass vacuously', revoked;
+  end if;
+  raise notice 'PASS  the patient revoked exactly one assignment';
 
   reset role;
 

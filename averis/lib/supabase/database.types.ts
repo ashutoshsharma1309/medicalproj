@@ -1073,6 +1073,15 @@ export type Database = {
           verified: boolean;
         }[];
       };
+      my_care_team_directory: {
+        Args: Record<never, never>;
+        Returns: {
+          user_id: string;
+          full_name: string | null;
+          email: string | null;
+          care_role: string;
+        }[];
+      };
       care_patient_directory: {
         Args: Record<never, never>;
         Returns: { patient_id: string; full_name: string | null }[];

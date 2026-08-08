@@ -42,9 +42,13 @@ where u.email = 'ananya@example.com'
 on conflict (device_key) do nothing;
 
 -- Readings from each, so provenance can be asserted on the rows themselves.
+-- `recorded_at` has no default: a reading with no time is a reading that
+-- cannot be placed on a chart, so the schema refuses it rather than inventing
+-- one. Fixtures have to say when.
 insert into public.sensor_readings
-  (device_id, patient_id, heart_rate, spo2, temperature, movement_status, is_simulated)
-select d.id, d.patient_id, 72, 98, 36.7, 'RESTING', d.is_simulated
+  (device_id, patient_id, heart_rate, spo2, temperature, movement_status,
+   is_simulated, recorded_at)
+select d.id, d.patient_id, 72, 98, 36.7, 'RESTING', d.is_simulated, now()
 from public.iot_devices d
 where d.device_key in ('SIMDEV01', 'BAND0001');
 
