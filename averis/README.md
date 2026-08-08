@@ -29,7 +29,8 @@ Then the IoT track, which turns the record into a monitoring platform:
 | **IoT 1** | Device registry, token-authenticated FastAPI ingest, sensor time-series, threshold alerts |
 | **IoT 2** | Live streaming over websockets, real-time vitals and charts, sensor simulator |
 | **IoT 3** | Health intelligence: anomaly detection, risk scoring, fall detection, explainable insights |
-| **IoT 4** | Doctors, caregivers and emergency response — see below |
+| **IoT 4** | Doctors, caregivers and emergency response |
+| **IoT 5** | Real ESP32 wearable: sensors, OLED, buzzer, BLE, offline buffering |
 
 A patient uploads a blood report, confirms what AVERIS read from it, and then
 has a timeline, a risk estimate showing exactly which values drove it, and the
@@ -109,10 +110,13 @@ npm test                     # 423 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
 
-# 105 Python tests: wire-contract conformance, the AI engine, escalation
+# 125 Python tests: wire-contract conformance, the AI engine, escalation
 iot-service/.venv/bin/python -m pytest iot-service/tests ai_engine/tests -q
 
-# 240 RLS assertions against the unmodified production migrations
+# 67 firmware checks — filters, fall detection, payload encoding. No ESP32.
+firmware/averis-wearable/test/run.sh
+
+# 254 RLS assertions against the unmodified production migrations
 PG_CONTAINER=<pg-container> PG_USER=postgres ./supabase/tests/run.sh
 ```
 
@@ -197,6 +201,7 @@ averis/
 │   ├── rag/                  chunking · retrieval · grounded answers
 │   ├── audit/ plans/ cache/ jobs/ security/ observability/
 │   └── supabase/             browser · server · proxy clients
+├── firmware/averis-wearable/ ESP32 firmware — logic tests run on the host
 ├── ai_engine/                Python health intelligence engine
 ├── iot-service/              FastAPI ingest, websocket hub, escalation
 ├── sensor_simulator/         speaks the device wire contract
@@ -227,6 +232,14 @@ averis/
   a badge nobody checked.
 - **Data drift detection** has its prerequisites (model registry, inference logging) but
   no detector.
+- **The wearable is a prototype, not a medical device.** SpO₂ uses the MAX30102 datasheet's
+  generic curve rather than a calibration against a reference oximeter, and the MLX90614
+  reports skin temperature with no correction to core temperature. Both limits are stated in
+  [docs/HARDWARE.md](docs/HARDWARE.md) and surfaced in the UI rather than hidden behind a
+  fudge factor.
+- **A band dropped on a table registers as a fall.** An accelerometer cannot distinguish a
+  still wrist from a still table; the skin-contact signal that would suppress it is not wired
+  into the fall path yet. Asserted in the firmware tests as a known limitation.
 
 ## A note on the models
 
