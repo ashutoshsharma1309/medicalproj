@@ -31,6 +31,8 @@ Then the IoT track, which turns the record into a monitoring platform:
 | **IoT 3** | Health intelligence: anomaly detection, risk scoring, fall detection, explainable insights |
 | **IoT 4** | Doctors, caregivers and emergency response |
 | **IoT 5** | Real ESP32 wearable: sensors, OLED, buzzer, BLE, offline buffering |
+| **IoT 6** | Health command centre, clinical zones, guided demonstration |
+| **IoT 7** | Personal baselines, deterioration detection, rural mode, Hindi insights |
 
 A patient uploads a blood report, confirms what AVERIS read from it, and then
 has a timeline, a risk estimate showing exactly which values drove it, and the
@@ -56,6 +58,9 @@ cited reference range.
         │
         ▼
   AI engine (Python) ──▶ risk · anomalies · falls ──▶ emergency ──▶ care team
+        │
+        ▼
+  Personal baseline ──▶ "unusual for THIS patient" ──▶ deterioration over days
 ```
 
 **The web app never holds a service-role key.** It talks to Postgres as the
@@ -192,7 +197,7 @@ npm test                     # 423 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
 
-# 125 Python tests: wire-contract conformance, the AI engine, escalation
+# 138 Python tests: wire-contract conformance, the AI engine, escalation, batching
 iot-service/.venv/bin/python -m pytest iot-service/tests ai_engine/tests -q
 
 # 67 firmware checks — filters, fall detection, payload encoding. No ESP32.
@@ -329,6 +334,7 @@ averis/
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | Why the system is shaped the way it is |
 | [docs/ai_pipeline.md](docs/ai_pipeline.md) | Where models are used, and where they deliberately are not |
+| [docs/personalisation.md](docs/personalisation.md) | Personal baselines, deterioration, rural mode, multi-language |
 | [docs/hardware.md](docs/hardware.md) | Pin map, wiring, BLE contract, power, accuracy limits |
 | [docs/deployment.md](docs/deployment.md) | Runtimes, environment, CI, deploy ordering |
 | [docs/iot_architecture.md](docs/iot_architecture.md) | The IoT track, phase by phase |
