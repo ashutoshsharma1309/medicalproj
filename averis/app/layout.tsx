@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Libre_Franklin, Source_Sans_3, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { ErrorReporter } from "@/components/observability/ErrorReporter";
 
 const libreFranklin = Libre_Franklin({
   subsets: ["latin"],
@@ -66,6 +67,12 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           Skip to main content
         </a>
+        {/* Renders nothing. Catches the failures React's error boundaries
+            cannot see — a rejected promise in the live-monitoring socket, a
+            realtime subscription that stopped reconnecting — which on this
+            application are the ones that leave a dashboard looking fine while
+            showing nothing new. */}
+        <ErrorReporter />
         {children}
       </body>
     </html>

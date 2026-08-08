@@ -67,6 +67,15 @@ export const RATE_LIMITS = {
   healthReport: { limit: 20, windowMs: 60 * 60 * 1000 },
   /** The clinical assistant: one completion per question, per clinician. */
   careAssistant: { limit: 40, windowMs: 60 * 60 * 1000 },
+  /**
+   * Browser error reports. Keyed by IP, because the session may be what broke.
+   *
+   * Generous, because a genuinely broken page can produce a burst — a render
+   * loop reports on every attempt — and the first few of those are the ones
+   * worth having. What this stops is an unauthenticated endpoint being used to
+   * fill a log budget.
+   */
+  clientError: { limit: 60, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitedOperation = keyof typeof RATE_LIMITS;
