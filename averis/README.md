@@ -39,19 +39,37 @@ cited reference range.
 
 ## Architecture
 
-Two runtime services from one image, plus managed Postgres and Redis.
+```
+  ESP32 wearable                    Browser
+  MAX30102 · MLX90614 · MPU6050        │
+  OLED · buzzer · LiPo                 │
+        │                              │
+        │ HTTPS + bearer token         │
+        ▼                              ▼
+  FastAPI ingest ─────────────▶  Next.js (Cloud Run)
+  validate · alert · escalate          │        │
+        │         ▲                    │        └──▶ Redis
+        │         │ service role       │ RLS, as the signed-in user
+        ▼         │                    ▼
+     Supabase ◀───┴──── Worker ──▶ Groq / xAI
+     Postgres · pgvector · Auth · Storage · Realtime
+        │
+        ▼
+  AI engine (Python) ──▶ risk · anomalies · falls ──▶ emergency ──▶ care team
+```
 
-```
-Browser ──▶ Next.js (Cloud Run) ──▶ Supabase (Postgres + pgvector + Auth + Storage)
-                 │                        ▲
-                 └──▶ Redis               │ service role
-                                    Worker (Cloud Run) ──▶ Groq / xAI
-```
+**The web app never holds a service-role key.** It talks to Postgres as the
+signed-in user, over Row Level Security — so a bug in a page cannot read a
+chart the policy would refuse, because the page has no credential that bypasses
+the policy. Only the ingest service and the worker hold one, and both run as
+separate processes.
 
 ML inference and embeddings run **in-process**, not in sidecars. The reasoning —
-and the one case where it flipped — is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+and the one case where it flipped — is in **[docs/architecture.md](docs/architecture.md)**.
 
-## Tech stack
+## Stack
+
+### Software
 
 - **Next.js 16** (App Router, Server Components, Server Actions) · TypeScript · Tailwind v4
 - **Supabase** — Postgres, Row Level Security, Auth, Storage, pgvector
@@ -61,12 +79,25 @@ and the one case where it flipped — is in **[docs/ARCHITECTURE.md](docs/ARCHIT
 - **MLflow** for experiment tracking · **Redis** for cache and rate limits
 - **Docker** · **GitHub Actions** · **GCP Cloud Run**
 
+### Hardware
+
+- **ESP32-WROOM-32** · Arduino C++ · PlatformIO
+- **MAX30102** heart rate and SpO₂ · **MLX90614** infrared skin temperature ·
+  **MPU6050** motion and falls
+- **SSD1306** OLED · passive buzzer · 3.7 V LiPo with a divider on ADC1
+- WiFi (HTTP) primary, **BLE read-only** as a local view
+
+Full pin map, wiring and accuracy limits: **[docs/hardware.md](docs/hardware.md)**.
+Bring-up procedure: **[HARDWARE_INTEGRATION_GUIDE.md](HARDWARE_INTEGRATION_GUIDE.md)**.
+
 ## Getting started
 
 ```bash
 git clone <repo> && cd medicalproj/averis
 npm install
 cp .env.example .env.local     # fill in the Supabase values
+
+./scripts/setup_database.sh    # migrations + seeds + schema validation + RLS suite
 npm run dev
 ```
 
@@ -102,6 +133,57 @@ docker compose up
 
 > XGBoost needs OpenMP (`brew install libomp` on macOS). Without it the pipeline
 > substitutes scikit-learn's gradient boosting and records which one ran.
+
+## Running the pieces
+
+Four processes. You need the first two; the rest depend on what you are doing.
+
+```bash
+# 1 — the web app
+npm run dev                                   # http://localhost:3100
+
+# 2 — the ingest service, which devices talk to
+cd iot-service
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+set -a && . ./.env && set +a
+.venv/bin/uvicorn app.main:app --port 8000
+
+# 3 — the simulator, standing in for a wearable
+python3 sensor_simulator/simulate.py \
+  --token avd_... --device-key AVR001 --mode normal      # normal | warning | emergency
+
+# 4 — the background worker, for document processing
+npx tsx scripts/worker.ts
+```
+
+The simulator speaks the **same HTTP contract the firmware does** — bearer
+token, same JSON, same endpoint. It is a separate process, not seeded rows,
+which is why swapping it for real hardware changes nothing else in the system.
+
+Register its device with **"This is a simulator"** ticked. Every row it writes
+is then stamped as generated and stays distinguishable from a measurement.
+
+### When the ESP32 arrives
+
+```bash
+cd firmware/averis-wearable
+cp src/config.example.h src/config.h    # key, token, WiFi, ingest URL
+pio run -t upload
+```
+
+Stop the simulator, start the band. Nothing else changes — same endpoint, same
+payload, same pipeline, same dashboards. Full procedure:
+**[HARDWARE_INTEGRATION_GUIDE.md](HARDWARE_INTEGRATION_GUIDE.md)**.
+
+### A guided demonstration
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=true npm run dev      # then open /demo
+```
+
+Six steps from sensor to clinician, each checked against live data. It seeds
+nothing — it tells you which simulator command to run and then verifies what
+actually happened.
 
 ## Verification
 
@@ -201,7 +283,6 @@ averis/
 │   ├── rag/                  chunking · retrieval · grounded answers
 │   ├── audit/ plans/ cache/ jobs/ security/ observability/
 │   └── supabase/             browser · server · proxy clients
-├── firmware/averis-wearable/ ESP32 firmware — logic tests run on the host
 ├── ai_engine/                Python health intelligence engine
 ├── iot-service/              FastAPI ingest, websocket hub, escalation
 ├── sensor_simulator/         speaks the device wire contract
@@ -211,7 +292,8 @@ averis/
 │   ├── seed/                 generated: model metrics · knowledge corpus
 │   └── tests/                RLS assertions, one file per phase
 ├── scripts/                  worker · seed generation · model prefetch
-├── docs/ARCHITECTURE.md
+├── docs/                     architecture · hardware · ai_pipeline · deployment
+├── firmware/averis-wearable/ ESP32 firmware — logic tests run on the host
 └── proxy.ts                  Next.js 16 route protection + token refresh
 ```
 
@@ -235,11 +317,27 @@ averis/
 - **The wearable is a prototype, not a medical device.** SpO₂ uses the MAX30102 datasheet's
   generic curve rather than a calibration against a reference oximeter, and the MLX90614
   reports skin temperature with no correction to core temperature. Both limits are stated in
-  [docs/HARDWARE.md](docs/HARDWARE.md) and surfaced in the UI rather than hidden behind a
+  [docs/hardware.md](docs/hardware.md) and surfaced in the UI rather than hidden behind a
   fudge factor.
 - **A band dropped on a table registers as a fall.** An accelerometer cannot distinguish a
   still wrist from a still table; the skin-contact signal that would suppress it is not wired
   into the fall path yet. Asserted in the firmware tests as a known limitation.
+
+## Documentation
+
+| Document | What it answers |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | Why the system is shaped the way it is |
+| [docs/ai_pipeline.md](docs/ai_pipeline.md) | Where models are used, and where they deliberately are not |
+| [docs/hardware.md](docs/hardware.md) | Pin map, wiring, BLE contract, power, accuracy limits |
+| [docs/deployment.md](docs/deployment.md) | Runtimes, environment, CI, deploy ordering |
+| [docs/iot_architecture.md](docs/iot_architecture.md) | The IoT track, phase by phase |
+| [docs/iot_runbook.md](docs/iot_runbook.md) | Running it end to end |
+| [HARDWARE_INTEGRATION_GUIDE.md](HARDWARE_INTEGRATION_GUIDE.md) | Bringing up a band, step by step |
+| [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Findings, fixes, and accepted risks |
+| [LOGGING_ARCHITECTURE.md](LOGGING_ARCHITECTURE.md) | What is logged, what must never be |
+| [PROJECT_COMPLETION_REPORT.md](PROJECT_COMPLETION_REPORT.md) | Built, not built, and what needs hardware |
+| [TEST_REPORT.md](TEST_REPORT.md) | Generated by `./run_all_tests.sh` |
 
 ## A note on the models
 

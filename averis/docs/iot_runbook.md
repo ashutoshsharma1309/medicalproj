@@ -158,7 +158,7 @@ button is not rendered at all rather than rendered dead.
 
 ## 8. Running with real hardware
 
-Full wiring, pin map and bring-up: **[HARDWARE.md](HARDWARE.md)**.
+Full wiring, pin map and bring-up: **[hardware.md](hardware.md)**.
 
 The short version — and the point of this section is that it is short:
 
