@@ -7,6 +7,8 @@ import type { CaseloadPatient } from "@/lib/care/triage";
 import { Card, CardHeader, Chip, Callout } from "@/components/ui";
 import { formatDate } from "@/lib/utils/format";
 import { recordAudit } from "@/lib/audit/audit-service";
+import { listCareNotices } from "@/lib/care/care-inbox-service";
+import { CareInbox } from "./CareInbox";
 
 export const metadata = { title: "Clinical Monitoring" };
 export const dynamic = "force-dynamic";
@@ -57,7 +59,10 @@ export default async function ClinicalPage() {
     );
   }
 
-  const caseload = await loadCaseload(supabase);
+  const [caseload, notices] = await Promise.all([
+    loadCaseload(supabase),
+    listCareNotices(supabase, account.appUserId),
+  ]);
 
   // Every clinician's view of a caseload is recorded. This is the main control
   // against a doctor browsing charts they have access to but no reason to open
@@ -87,6 +92,23 @@ export default async function ClinicalPage() {
           {caseload.length} assigned {caseload.length === 1 ? "patient" : "patients"}.
         </p>
       </header>
+
+      {/* Above the caseload: an emergency raised two minutes ago outranks the
+          list of everyone who is currently fine. */}
+      <Card>
+        <CardHeader
+          eyebrow="Alerts"
+          title="Emergency notifications"
+          action={
+            notices.filter((n) => !n.readAt).length > 0 ? (
+              <Chip tone="critical">
+                {notices.filter((n) => !n.readAt).length} unread
+              </Chip>
+            ) : null
+          }
+        />
+        <CareInbox notices={notices} recipientId={account.appUserId} />
+      </Card>
 
       {caseload.length === 0 ? (
         <Callout tone="brand" title="No patients assigned yet">
