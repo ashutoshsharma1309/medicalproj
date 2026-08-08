@@ -149,11 +149,16 @@ export type AuditAction =
   | "RISK_PREDICTION_GENERATED"
   | "AI_QUESTION_ASKED"
   | "REPORT_EXPLAINED"
+  | "EMERGENCY_ACKNOWLEDGED"
+  | "EMERGENCY_RESOLVED"
+  | "CARE_TEAM_UPDATED"
+  | "HEALTH_REPORT_GENERATED"
   | "SIGNED_IN"
   | "SIGNED_OUT";
 
 export type AuditResource =
-  | "DOCUMENT" | "PROFILE" | "PREDICTION" | "CONVERSATION" | "TWIN" | "SESSION";
+  | "DOCUMENT" | "PROFILE" | "PREDICTION" | "CONVERSATION" | "TWIN" | "SESSION"
+  | "EMERGENCY" | "REPORT";
 
 export type NotificationKind =
   | "DOCUMENT_PROCESSED" | "DOCUMENT_FAILED" | "INSIGHT_GENERATED" | "PROFILE_UPDATED";
@@ -677,6 +682,56 @@ export type Database = {
         Relationships: [];
       };
 
+      care_notifications: {
+        Row: {
+          id: string;
+          recipient_id: string;
+          patient_id: string;
+          emergency_id: string | null;
+          severity: AlertSeverityEnum;
+          title: string;
+          body: string;
+          href: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        // Written inside private.raise_emergency(), which runs as the service
+        // role. A browser that could insert here could tell a doctor a patient
+        // had collapsed.
+        Insert: Record<never, never>;
+        // Dismissal, and nothing else.
+        Update: { read_at?: string | null };
+        Relationships: [];
+      };
+
+      patient_health_reports: {
+        Row: {
+          id: string;
+          patient_id: string;
+          generated_by: string | null;
+          period_start: string;
+          period_end: string;
+          summary: string;
+          sections: unknown;
+          generated_with: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          patient_id: string;
+          generated_by: string;
+          period_start: string;
+          period_end: string;
+          summary: string;
+          sections?: unknown;
+          generated_with?: string;
+        };
+        // A report is what a clinician read at a moment in time. Editing one
+        // afterwards would make the record of that moment untrue.
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
       ai_insights: {
         Row: {
           id: string;
@@ -960,6 +1015,25 @@ export type Database = {
           metadata: unknown;
           similarity: number;
         }[];
+      };
+      find_doctor_by_license: {
+        Args: { p_license: string };
+        Returns: {
+          id: string;
+          full_name: string;
+          specialization: string | null;
+          hospital_name: string | null;
+          verified: boolean;
+        }[];
+      };
+      invite_caregiver: {
+        Args: {
+          p_email: string;
+          p_relationship: string | null;
+          p_permission: CaregiverPermission;
+        };
+        // 'ASSIGNED' | 'NO_ACCOUNT' | 'SELF' | 'NO_PROFILE'
+        Returns: string;
       };
     };
     Enums: {
