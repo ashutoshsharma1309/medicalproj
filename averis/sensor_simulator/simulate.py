@@ -4,10 +4,19 @@
     python sensor_simulator/simulate.py --token avd_... --device-key AVR001
 
 This is **not** fake UI data. It is a separate process that speaks the same
-HTTP contract the firmware will: bearer token, same JSON body, same endpoint.
-When the hardware arrives, the ESP32 replaces this process and nothing else in
-the system changes. That is the whole reason it exists as a client rather than
-as a seeded table.
+HTTP contract the firmware does: bearer token, same JSON body, same endpoint.
+
+The hardware has now arrived — `firmware/averis-wearable` sends these exact
+bytes — and this tool did not become obsolete, which was the point of building
+it as a client rather than as a seeded table. It stays for the three jobs a
+band cannot do: reproducing a scenario exactly (`--seed`), producing a
+deterioration on demand rather than waiting for a patient to have one, and
+running in CI where there is no wrist.
+
+**The one thing it must never do is pass for a real device.** Every reading it
+sends is stamped `is_simulated` on the row — from the device registration
+rather than from this payload, because a simulator that could declare itself
+real would make the flag worthless. Register the device as a simulator.
 
 **On the numbers.** They come from a random walk with physiological bounds and
 inertia, not from `random.uniform` per tick. Independent samples produce a heart
@@ -105,6 +114,7 @@ def build_payload(
     rng: random.Random,
     battery: float,
     fall: bool = False,
+    telemetry: dict | None = None,
 ) -> dict:
     movement = "FALL_SUSPECTED" if fall else rng.choice(scenario["movement"])
 
@@ -115,7 +125,7 @@ def build_payload(
     if fall:
         heart_rate = min(200, heart_rate + rng.randint(25, 45))
 
-    return {
+    payload = {
         "device_id": device_key,
         "heart_rate": heart_rate,
         "spo2": int(scenario["spo2"].tick(rng)),
@@ -125,6 +135,44 @@ def build_payload(
         # The device stamps its own time. Sending it exercises the same path a
         # device buffering through a network outage will use.
         "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if telemetry is not None:
+        payload["telemetry"] = telemetry
+
+    return payload
+
+
+def build_telemetry(
+    sent: int,
+    rng: random.Random,
+    firmware: str,
+    broken_sensor: str | None,
+) -> dict:
+    """The diagnostic block a real band sends.
+
+    Included so the hardware dashboard has something to render before anyone
+    owns an ESP32, and — more usefully — so the *failure* paths can be
+    exercised on demand. `--break-sensor imu` produces the sensor-fault event
+    that would otherwise require unsoldering something.
+
+    `transport` says "simulator" and cannot say anything else. The device row
+    decides provenance; this is the honest label on the wire to match it.
+    """
+    sensors = {"pulse": "ok", "thermometer": "ok", "imu": "ok"}
+    if broken_sensor:
+        sensors[broken_sensor] = "faulty"
+
+    return {
+        # A plausible indoor signal that wanders, so the dashboard's signal
+        # column is exercised rather than constant.
+        "rssi": int(rng.gauss(-58, 6)),
+        "uptime_s": sent * 2,
+        "boot_count": 1,
+        "firmware": firmware,
+        "transport": "simulator",
+        "buffered": 0,
+        "sensors": sensors,
     }
 
 
@@ -153,7 +201,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Simulate an AVERIS wearable.")
     parser.add_argument("--token", required=True, help="Device token issued at registration (avd_...)")
     parser.add_argument("--device-key", required=True, help="Device key, e.g. AVR001")
-    parser.add_argument("--url", default="http://localhost:8000/api/device/data")
+    parser.add_argument("--url", default="http://localhost:8000/api/device/upload")
     parser.add_argument("--interval", type=float, default=2.0, help="Seconds between readings")
     parser.add_argument("--scenario", choices=sorted(SCENARIOS), default="resting")
     parser.add_argument("--count", type=int, default=0, help="Readings to send; 0 means run until stopped")
@@ -163,6 +211,22 @@ def main() -> int:
         type=int,
         default=0,
         help="Inject a fall event after N readings (0 = never)",
+    )
+    parser.add_argument(
+        "--break-sensor",
+        choices=["pulse", "thermometer", "imu"],
+        default=None,
+        help="Report a sensor as faulty, to exercise the hardware dashboard",
+    )
+    parser.add_argument(
+        "--firmware",
+        default="sim-1.0.0",
+        help="Firmware version to report (deliberately not a real one by default)",
+    )
+    parser.add_argument(
+        "--no-telemetry",
+        action="store_true",
+        help="Send only vital signs, as a minimal third-party device would",
     )
     args = parser.parse_args()
 
@@ -174,7 +238,10 @@ def main() -> int:
     print(f"  device   {args.device_key}")
     print(f"  scenario {args.scenario}")
     print(f"  target   {args.url}")
-    print(f"  interval {args.interval}s\n")
+    print(f"  interval {args.interval}s")
+    if args.break_sensor:
+        print(f"  reporting {args.break_sensor} as FAULTY")
+    print()
 
     running = True
 
@@ -194,7 +261,14 @@ def main() -> int:
         battery = max(0.0, battery - 0.0025)
 
         fall = args.fall_after > 0 and sent + 1 == args.fall_after
-        payload = build_payload(args.device_key, scenario, rng, battery, fall=fall)
+        telemetry = (
+            None
+            if args.no_telemetry
+            else build_telemetry(sent, rng, args.firmware, args.break_sensor)
+        )
+        payload = build_payload(
+            args.device_key, scenario, rng, battery, fall=fall, telemetry=telemetry
+        )
         status, body = post(args.url, args.token, payload)
 
         if status == 201:

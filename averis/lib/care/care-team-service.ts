@@ -112,16 +112,8 @@ export async function loadCaseload(
         // monitoring platform must not have.
         deviceStatus: device
           ? effectiveStatus({
-              id: device.id,
-              deviceKey: device.device_key,
-              deviceName: device.device_name,
-              deviceType: device.device_type as never,
               connectionStatus: device.connection_status as ConnectionStatus,
-              batteryPercentage: device.battery_percentage,
-              firmwareVersion: device.firmware_version,
-              lastConnectedAt: device.last_connected_at,
               lastReadingAt: device.last_reading_at,
-              createdAt: device.created_at,
             })
           : null,
         lastSyncAt: device?.last_reading_at ?? null,

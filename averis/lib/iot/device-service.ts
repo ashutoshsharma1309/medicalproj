@@ -8,6 +8,7 @@ import {
   normalizeDeviceKey,
   suggestDeviceKey,
 } from "./device-identity";
+import type { HardwareTelemetry, SensorState } from "./hardware-status";
 
 /**
  * Device registration and listing.
@@ -44,6 +45,8 @@ export type DeviceRecord = {
   lastConnectedAt: string | null;
   lastReadingAt: string | null;
   createdAt: string;
+  /** Phase 5 hardware telemetry. Null on a device that predates the firmware. */
+  telemetry: HardwareTelemetry;
 };
 
 /**
@@ -56,7 +59,14 @@ export type DeviceRecord = {
  */
 export const OFFLINE_AFTER_MS = 90_000;
 
-export function effectiveStatus(device: DeviceRecord, now = new Date()): ConnectionStatus {
+export function effectiveStatus(
+  // Narrowed to the two fields the derivation actually reads. A caller that
+  // has a connection status and a last reading should not have to assemble a
+  // whole device record — and every field it were forced to invent would be a
+  // field that could be invented wrongly.
+  device: Pick<DeviceRecord, "connectionStatus" | "lastReadingAt">,
+  now = new Date(),
+): ConnectionStatus {
   if (device.connectionStatus === "RETIRED") return "RETIRED";
   if (!device.lastReadingAt) return device.connectionStatus;
 
@@ -73,7 +83,7 @@ export async function listDevices(
     // token_hash is deliberately absent — the column grant is revoked, so
     // selecting it would fail rather than leak.
     .select(
-      "id, device_key, device_name, device_type, connection_status, battery_percentage, firmware_version, last_connected_at, last_reading_at, created_at",
+      "id, device_key, device_name, device_type, connection_status, battery_percentage, firmware_version, last_connected_at, last_reading_at, created_at, is_simulated, signal_strength_dbm, uptime_seconds, boot_count, hardware_revision, transport, sensor_health, last_latency_ms, buffered_readings, last_boot_at",
     )
     .eq("patient_id", patientProfileId)
     .order("created_at", { ascending: true });
@@ -92,7 +102,19 @@ export type RegistrationResult = {
 export async function registerDevice(
   supabase: SupabaseClient<Database>,
   patientProfileId: string,
-  input: { deviceName: string; deviceType: DeviceType; deviceKey?: string },
+  input: {
+    deviceName: string;
+    deviceType: DeviceType;
+    deviceKey?: string;
+    /**
+     * Declared at registration and never inferred from traffic.
+     *
+     * The alternative — guessing from a `transport` field on the wire — would
+     * let anything that wanted to be treated as real simply say so, which is
+     * the one thing this flag has to prevent.
+     */
+    isSimulated?: boolean;
+  },
 ): Promise<RegistrationResult> {
   const existing = await listDevices(supabase, patientProfileId);
 
@@ -115,9 +137,10 @@ export async function registerDevice(
       device_type: input.deviceType,
       token_hash: tokenHash,
       connection_status: "PROVISIONED",
+      is_simulated: input.isSimulated ?? false,
     })
     .select(
-      "id, device_key, device_name, device_type, connection_status, battery_percentage, firmware_version, last_connected_at, last_reading_at, created_at",
+      "id, device_key, device_name, device_type, connection_status, battery_percentage, firmware_version, last_connected_at, last_reading_at, created_at, is_simulated, signal_strength_dbm, uptime_seconds, boot_count, hardware_revision, transport, sensor_health, last_latency_ms, buffered_readings, last_boot_at",
     )
     .single();
 
@@ -222,6 +245,16 @@ type DeviceRow = {
   connection_status: string;
   battery_percentage: number | null;
   firmware_version: string | null;
+  signal_strength_dbm: number | null;
+  uptime_seconds: number | null;
+  boot_count: number | null;
+  hardware_revision: string | null;
+  transport: string | null;
+  sensor_health: unknown;
+  last_latency_ms: number | null;
+  buffered_readings: number | null;
+  last_boot_at: string | null;
+  is_simulated: boolean;
   last_connected_at: string | null;
   last_reading_at: string | null;
   created_at: string;
@@ -239,5 +272,21 @@ function toRecord(row: DeviceRow): DeviceRecord {
     lastConnectedAt: row.last_connected_at,
     lastReadingAt: row.last_reading_at,
     createdAt: row.created_at,
+    telemetry: {
+      signalStrengthDbm: row.signal_strength_dbm,
+      uptimeSeconds: row.uptime_seconds,
+      bootCount: row.boot_count,
+      hardwareRevision: row.hardware_revision,
+      transport: row.transport,
+      // Cast at the boundary rather than trusted: `sensor_health` is jsonb
+      // written by firmware, and the parser upstream already narrows the
+      // values — anything unexpected renders as "unknown" instead of
+      // reaching a component that assumed a union.
+      sensorHealth: (row.sensor_health ?? {}) as Record<string, SensorState>,
+      lastLatencyMs: row.last_latency_ms,
+      bufferedReadings: row.buffered_readings,
+      lastBootAt: row.last_boot_at,
+      isSimulated: row.is_simulated,
+    },
   };
 }
