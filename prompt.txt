@@ -1,4 +1,4 @@
-You are a Senior Healthcare Product Architect, Full-Stack Engineer, Cloud Engineer, and MedTech System Designer with 10+ years of experience building remote patient monitoring platforms used by hospitals and healthcare providers.
+You are a Senior Embedded Systems Engineer, IoT Architect, Firmware Developer, Cloud Engineer, and MedTech Product Engineer with 10+ years of experience building healthcare wearable devices integrated with cloud platforms.
 
 You are continuing development of:
 
@@ -16,800 +16,778 @@ Completed:
 PHASE 1:
 
 ✓ Patient authentication
-✓ IoT device management
-✓ Sensor database architecture
-✓ Device communication foundation
+✓ IoT device architecture
+✓ Device management
+✓ Sensor data APIs
 
 
 PHASE 2:
 
-✓ Real-time sensor streaming
-✓ Live patient monitoring dashboard
+✓ Real-time monitoring system
 ✓ Sensor simulator
-✓ Real-time health graphs
-✓ Device monitoring
+✓ Live dashboard
+✓ Real-time graphs
 
 
 PHASE 3:
 
-✓ AI health intelligence engine
-✓ Anomaly detection
-✓ Risk scoring
-✓ Fall detection
+✓ AI anomaly detection
+✓ Risk prediction
 ✓ Explainable AI
-✓ Predictive health insights
+
+
+PHASE 4:
+
+✓ Doctor dashboard
+✓ Caregiver system
+✓ Emergency alerts
+✓ Healthcare assistant
 
 
 Now implement:
 
-# PHASE 4: DOCTOR/CAREGIVER MONITORING PLATFORM AND EMERGENCY RESPONSE SYSTEM
+# PHASE 5: REAL IoT HARDWARE INTEGRATION WITH ESP32
 
 
 ==================================================
 PHASE OBJECTIVE
 ==================================================
 
-Transform AVERIS from a patient monitoring system into a complete remote healthcare monitoring platform.
+Replace the existing sensor simulator with a real ESP32-based wearable healthcare device.
 
 
-The system should support:
-
-- Patients
-- Doctors
-- Caregivers
+The final architecture:
 
 
-The goal:
+Healthcare Wearable
 
-When AVERIS detects a health risk, the right person should receive actionable information immediately.
+↓
 
+ESP32
 
-==================================================
-IMPORTANT PRODUCT RULE
-==================================================
+↓
 
-Do not create a simple admin dashboard.
+Bluetooth/WiFi Communication
 
-Build a healthcare monitoring platform.
+↓
 
+FastAPI Backend
 
-The dashboard should answer:
+↓
 
-1. Which patients need attention?
+Database
 
-2. What is happening with them?
+↓
 
-3. Why did AVERIS generate an alert?
+AI Risk Engine
 
-4. What action should be taken?
+↓
 
-
-==================================================
-ROLE-BASED ACCESS SYSTEM
-==================================================
-
-
-Implement:
-
-
-Roles:
-
-
-PATIENT
-
-DOCTOR
-
-CAREGIVER
-
-ADMIN
-
-
-
-Permissions:
-
-
-PATIENT:
-
-- View own health data
-- View own alerts
-- View AI insights
-
-
-DOCTOR:
-
-- Monitor assigned patients
-- View health trends
-- View AI risk predictions
-- Manage alerts
-
-
-CAREGIVER:
-
-- Monitor authorized patients
-- Receive emergency notifications
-
-
-
-ADMIN:
-
-- Manage users
-- Manage devices
+Doctor Dashboard
 
 
 
 ==================================================
-DATABASE EXTENSION
+HARDWARE COMPONENTS
 ==================================================
 
 
-Create:
+Integrate:
 
 
-## Doctor Table
+Microcontroller:
 
 
-Fields:
-
-
-- id
-- user_id
-- specialization
-- hospital_name
-- license_number
-- created_at
+ESP32 Development Board
 
 
 
---------------------------------
+Sensors:
 
 
-## Patient Doctor Mapping
+MAX30102:
 
+Purpose:
 
-Fields:
-
-
-- id
-- patient_id
-- doctor_id
-- assigned_at
-- status
+- Heart rate monitoring
+- SpO2 measurement
 
 
 
---------------------------------
+MLX90614:
 
+Purpose:
 
-## Caregiver Mapping
-
-
-Fields:
-
-
-- id
-- patient_id
-- caregiver_id
-- relationship
-- permission_level
+- Body temperature measurement
 
 
 
---------------------------------
+MPU6050:
+
+Purpose:
+
+- Motion detection
+- Activity monitoring
+- Fall detection
 
 
-## Emergency Events
+
+Additional:
 
 
-Fields:
+OLED Display:
+
+- Display live vitals
 
 
-- id
-- patient_id
-- event_type
-- severity
-- detected_by
-- status
-- created_at
-- resolved_at
+Buzzer:
+
+- Local emergency alert
+
+
+Battery:
+
+- Portable wearable power
 
 
 
 ==================================================
-1. DOCTOR DASHBOARD
+1. ESP32 FIRMWARE DEVELOPMENT
 ==================================================
 
 
-Create:
+Create ESP32 firmware.
 
 
-# AVERIS Clinical Monitoring Dashboard
+Technology:
+
+Arduino C++
 
 
-The dashboard should show:
+The firmware should:
 
 
-## Patient Overview
+Initialize:
 
 
-Display:
+- ESP32
+- Sensors
+- Communication module
+- Display
 
 
-Patient Name
-
-Current Risk Level
-
-Device Status
-
-Last Sync Time
-
-Current Vitals
-
+Read sensor values continuously.
 
 
 Example:
 
 
-Rahul Sharma
-
-
-Risk:
-
-HIGH ⚠️
+MAX30102:
 
 
 Heart Rate:
 
-132 BPM
+82 BPM
 
 
 SpO2:
 
-89%
+97%
 
 
-Last Update:
 
-5 seconds ago
+MLX90614:
+
+
+Temperature:
+
+36.8°C
+
+
+
+MPU6050:
+
+
+Movement:
+
+Walking
 
 
 
 ==================================================
-2. PATIENT RISK PRIORITIZATION
+2. SENSOR DATA PROCESSING ON ESP32
 ==================================================
 
 
-Create:
+Implement:
 
 
-Risk Sorting System
+Sensor calibration.
 
 
-Doctors should see:
+Handle:
 
 
-Critical patients first.
+- Sensor noise
+- Invalid readings
+- Missing values
 
+
+Apply:
+
+
+Basic filtering:
+
+- Moving average filter
+- Noise reduction
+
+
+Do not send corrupted sensor values.
+
+
+
+==================================================
+3. ESP32 DATA FORMAT
+==================================================
+
+
+Create standard communication format.
+
+
+Use JSON.
 
 
 Example:
 
 
-Patient List:
+{
+"device_id":"AVR001",
+
+"patient_id":"P001",
+
+"heart_rate":82,
+
+"spo2":97,
+
+"temperature":36.8,
+
+"movement":"walking",
+
+"timestamp":"2026-08-07T10:30:00"
+
+}
 
 
-Rahul Sharma
 
-CRITICAL
-
-
-Anita Singh
-
-HIGH
-
-
-Mohan Kumar
-
-LOW
-
-
-
-Sort based on:
-
-
-- AI risk score
-- Active alerts
-- Recent abnormal events
+This format must match backend APIs.
 
 
 
 ==================================================
-3. PATIENT DETAIL VIEW
+4. COMMUNICATION LAYER
 ==================================================
+
+
+Implement communication between ESP32 and backend.
+
+
+Support:
+
+
+Primary:
+
+
+WiFi communication
+
+
+Protocol:
+
+HTTP REST API
+
+
+Future-ready:
+
+
+MQTT support
+
+
+
+Secondary:
+
+
+Bluetooth BLE support
+
+
+
+==================================================
+5. BLUETOOTH BLE IMPLEMENTATION
+==================================================
+
+
+Implement BLE communication foundation.
+
+
+ESP32 should expose:
+
+
+AVERIS Health Service
+
+
+Characteristics:
+
+
+Heart Rate
+
+SpO2
+
+Temperature
+
+Movement
+
+
+
+A mobile/laptop application should be able to discover:
+
+Device ID
+
+Connection status
+
+Sensor availability
+
+
+
+==================================================
+6. WIFI CLOUD COMMUNICATION
+==================================================
+
+
+Implement:
+
+
+ESP32
+
+↓
+
+WiFi
+
+↓
+
+FastAPI endpoint
+
 
 
 Create:
 
 
-Individual patient monitoring page.
+POST:
+
+
+/api/device/upload
+
+
+
+Send:
+
+
+Sensor readings
+
+
+Backend should:
+
+
+- Authenticate device
+- Validate payload
+- Store data
+- Trigger AI pipeline
+
+
+
+==================================================
+7. DEVICE AUTHENTICATION
+==================================================
+
+
+Do not allow random devices to send data.
+
+
+Implement:
+
+
+Device authentication.
+
+
+Each ESP32 should have:
+
+
+- Device ID
+- Device secret/token
+
+
+Example:
+
+
+Device:
+
+AVR-WEARABLE-001
+
+
+Status:
+
+Verified
+
+
+
+==================================================
+8. OLED DISPLAY IMPLEMENTATION
+==================================================
 
 
 Display:
 
 
-## Live Vitals
+AVERIS
 
 
-- Heart rate
-- SpO2
-- Temperature
-- Movement
+Heart Rate:
 
-
-
-## Health Trends
-
-
-Graphs:
-
-- Heart rate history
-- Oxygen trend
-- Temperature trend
-
-
-
-## AI Intelligence
-
-
-Show:
-
-
-Risk score
-
-Confidence
-
-Explanation
-
-
-
-Example:
-
-
-Risk:
-
-82%
-
-
-Reasons:
-
-SpO2 decreasing
-
-Heart rate increasing
-
-Abnormal movement detected
-
-
-
-==================================================
-4. EMERGENCY ALERT SYSTEM
-==================================================
-
-
-Build complete alert workflow.
-
-
-
-Flow:
-
-
-AI Detection
-
-↓
-
-Emergency Event Created
-
-↓
-
-Doctor/Caregiver Notification
-
-↓
-
-Action Taken
-
-↓
-
-Event Resolved
-
-
-
-==================================================
-ALERT TYPES
-==================================================
-
-
-Create:
-
-
-CRITICAL:
-
-
-Examples:
-
-
-- Severe SpO2 drop
-- Fall detected
-- Extreme heart rate abnormality
-
-
-
-HIGH:
-
-
-Examples:
-
-
-- Increasing risk trend
-- Abnormal vitals
-
-
-
-MEDIUM:
-
-
-Examples:
-
-
-- Unusual patterns
-
-
-
-LOW:
-
-
-Examples:
-
-
-- Minor deviation
-
-
-
-==================================================
-5. REAL-TIME ALERT NOTIFICATIONS
-==================================================
-
-
-Implement:
-
-
-Real-time notifications.
-
-
-Options:
-
-
-- WebSocket notifications
-- In-app notification center
-
-
-
-Example:
-
-
-CRITICAL ALERT
-
-
-Patient:
-
-Rahul Sharma
-
-
-Issue:
-
-Low oxygen level detected
+82 BPM
 
 
 SpO2:
 
-86%
+97%
 
 
-Time:
+Temperature:
 
-10:45 AM
-
-
-
-==================================================
-6. EMERGENCY RESPONSE WORKFLOW
-==================================================
-
-
-Create:
-
-
-Alert Management System
-
-
-Actions:
-
-
-Doctor can:
-
-
-- Acknowledge alert
-- Mark under review
-- Resolve alert
-- Add notes
+36.8°C
 
 
 
-Status:
-
-
-NEW
-
-ACKNOWLEDGED
-
-IN_PROGRESS
-
-RESOLVED
+Update continuously.
 
 
 
 ==================================================
-7. PATIENT HEALTH REPORT GENERATION
+9. BUZZER EMERGENCY SYSTEM
 ==================================================
 
 
-Create:
+Implement local alerts.
 
 
-AI-assisted health report.
+Examples:
 
 
-Generate:
+If:
 
 
-Patient Summary:
+SpO2 < 90%
 
 
-- Current condition
-- Recent vitals
-- Risk history
-- Important trends
+or
+
+
+Heart rate extremely abnormal
+
+
+
+Then:
+
+
+ESP32:
+
+
+- Activate buzzer
+- Display warning
 
 
 
 Example:
 
 
-"Patient showed increased heart rate trend during the last 24 hours with decreasing oxygen levels."
+OLED:
 
 
-Use:
+WARNING
 
-Grok API
-
-only for explanation and summarization.
-
-
-Do not generate diagnosis.
+Low Oxygen Level
 
 
 
 ==================================================
-8. MEDICAL CHATBOT / HEALTH ASSISTANT
+10. FALL DETECTION INTEGRATION
 ==================================================
 
 
-Add a healthcare assistant.
+Use MPU6050.
 
 
-IMPORTANT:
-
-This should NOT be a generic chatbot.
+Detect:
 
 
-It should be context-aware.
+Normal:
+
+- Walking
+- Sitting
+- Standing
 
 
-The assistant should use:
+Abnormal:
 
-
-- Patient health data
-- Sensor history
-- AI insights
-
-
-Examples:
-
-
-Doctor:
-
-"Why is this patient marked high risk?"
-
-
-AI:
-
-"Risk increased due to continuous SpO2 decline and elevated heart rate pattern."
-
-
-Patient:
-
-"Explain my current health status."
-
-
-AI:
-
-"Your recent monitoring data shows stable heart rate but reduced oxygen trend."
-
-
-==================================================
-9. VOICE ASSISTANT FOUNDATION
-==================================================
-
-
-Add voice interaction foundation.
-
-
-Capabilities:
-
-
-Patient can ask:
-
-
-"How is my health today?"
-
-
-"Do I have any alerts?"
-
-
-Doctor can ask:
-
-
-"Show critical patients."
+- Sudden acceleration
+- Impact
+- No movement after impact
 
 
 
-Implement:
+Send:
 
 
-Speech-to-text layer
+movement_status:
 
-↓
 
-AI processing
+"fall_detected"
 
-↓
 
-Response generation
+
+Trigger:
+
+
+Backend emergency alert.
 
 
 
 ==================================================
-10. UI/UX REQUIREMENTS
+11. BACKEND HARDWARE ADAPTATION
 ==================================================
 
 
-Design should feel like:
+Update backend.
 
 
-Hospital monitoring software.
+Remove dependency on simulator.
 
 
-Avoid:
+Support:
 
 
-- ChatGPT clone
-- Generic dashboards
-- Consumer fitness app design
+Sensor Simulator
+
+AND
+
+Real ESP32 Device
 
 
 
-Use:
+Architecture:
 
 
-- Clinical information hierarchy
-- Clean medical visualization
-- Clear alert indicators
-- Professional layouts
+Input Sources:
+
+
+Simulator
+
+|
+
+ESP32
+
+
+        ↓
+
+
+Same Data Processing Pipeline
 
 
 
 ==================================================
-11. SECURITY REQUIREMENTS
+12. HARDWARE STATUS DASHBOARD
 ==================================================
 
 
-Healthcare data requires strict access control.
+Add:
 
 
-Implement:
+Device Monitoring Page.
 
 
-- Role-based authorization
-- Patient-doctor relationship validation
-- Secure medical data access
-- Audit logging
+Display:
 
 
+Device:
 
-A doctor should only access assigned patients.
+AVR001
+
+
+Connection:
+
+Online
+
+
+Battery:
+
+85%
+
+
+Last Data:
+
+1 second ago
+
+
+Sensors:
+
+
+✓ Heart Rate
+
+✓ SpO2
+
+✓ Temperature
+
+✓ Motion
+
 
 
 ==================================================
-12. TESTING REQUIREMENTS
+13. HARDWARE TESTING MODE
+==================================================
+
+
+Create:
+
+
+Hardware Testing Dashboard.
+
+
+Allow engineers to verify:
+
+
+Sensor values:
+
+- Live readings
+- Sensor status
+- Communication latency
+
+
+==================================================
+14. POWER OPTIMIZATION
+==================================================
+
+
+Implement basic power management.
+
+
+Consider:
+
+
+- Deep sleep mode
+- Sensor sampling intervals
+- Battery monitoring
+
+
+
+==================================================
+15. DOCUMENTATION
+==================================================
+
+
+Create:
+
+
+Hardware Documentation:
+
+
+Include:
+
+
+- Circuit diagram
+- Sensor connections
+- ESP32 pin mapping
+- Firmware setup
+- Communication protocol
+
+
+
+Example:
+
+
+MAX30102:
+
+SDA → GPIO21
+
+SCL → GPIO22
+
+
+
+==================================================
+16. TESTING REQUIREMENTS
 ==================================================
 
 
 Test:
 
 
-Roles:
+Hardware:
 
 
-✓ Patient access
+✓ All sensors working
 
-✓ Doctor access
+✓ OLED display working
 
-✓ Caregiver access
-
-
-
-Alerts:
+✓ Buzzer working
 
 
-✓ Alert creation
 
-✓ Notification delivery
+Communication:
 
-✓ Alert resolution
+
+✓ ESP32 connects
+
+✓ Data reaches backend
+
+✓ Dashboard updates
 
 
 
 AI:
 
 
-✓ Risk explanation displayed
+✓ Real sensor data reaches AI engine
 
-✓ Patient data context available
+✓ Alerts trigger correctly
 
 
 
 ==================================================
-PHASE 4 FINAL SUCCESS CRITERIA
+PHASE 5 FINAL SUCCESS CRITERIA
 ==================================================
 
 
-At the end of Phase 4:
+At the end of Phase 5:
 
 
 AVERIS AI should have:
 
 
-✓ Patient dashboard
+✓ Real ESP32 wearable integration
 
-✓ Doctor monitoring dashboard
+✓ Real sensor data streaming
 
-✓ Caregiver access
+✓ Bluetooth/WiFi communication
 
-✓ Role-based healthcare system
+✓ Live healthcare monitoring
 
-✓ Real-time alerts
+✓ Hardware emergency alerts
 
-✓ Emergency workflow
-
-✓ AI health assistant
-
-✓ Voice assistant foundation
+✓ Cloud-connected wearable system
 
 
 The final experience should demonstrate:
 
 
-"AVERIS does not only detect health risks. It connects patients, caregivers, and healthcare providers for timely intervention."
+"A real wearable healthcare device continuously monitors a patient, sends data to AVERIS, and AI detects health risks in real time."
 
 
 Not:
 
 
-"A dashboard that only displays sensor values."
+"A website connected to simulated sensor values."
