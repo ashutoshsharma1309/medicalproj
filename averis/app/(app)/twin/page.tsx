@@ -7,6 +7,7 @@ import { generateHealthSummary } from "@/lib/services/twin/health-summary-servic
 import { groupByYear } from "@/lib/services/twin/timeline-service";
 import { assessAllRisks } from "@/lib/ml/risk-service";
 import { riskInsights } from "@/lib/ml/twin-integration";
+import { cachedForSubject } from "@/lib/cache/patient-cache";
 import { Card, CardHeader, Chip, Callout, ButtonLink, DataPoint } from "@/components/ui";
 import { formatDate } from "@/lib/utils/format";
 import { OverviewMeter } from "./OverviewMeter";
@@ -21,14 +22,27 @@ export default async function HealthTwinPage() {
   if (!account.patientProfileId) redirect("/onboarding");
 
   const supabase = await createClient();
-  const twin = await buildDigitalTwin(supabase, account.patientProfileId);
-  const summary = await generateHealthSummary(twin);
+  const patientId = account.patientProfileId;
+
+  // Cached, because this page assembles a dozen tables and a patient opens it
+  // several times a day. `cachedForSubject` only caches when the viewer is the
+  // subject — which is always true here, and is enforced rather than assumed,
+  // because the same assembly is read by clinicians under a different Row
+  // Level Security grant. See lib/cache/patient-cache.ts.
+  const twin = await cachedForSubject("twin", patientId, patientId, () =>
+    buildDigitalTwin(supabase, patientId),
+  );
+  const summary = await cachedForSubject("summary", patientId, patientId, async () =>
+    generateHealthSummary(twin),
+  );
 
   // Risk assessments render alongside the record-derived insights, but are
   // computed separately: one is arithmetic over confirmed data, the other a
   // statistical estimate from a public cohort. Sharing a code path would blur
   // a distinction the patient needs.
-  const assessments = await assessAllRisks(supabase, account.patientProfileId);
+  const assessments = await cachedForSubject("risk", patientId, patientId, () =>
+    assessAllRisks(supabase, patientId),
+  );
   const insights = [...riskInsights(Object.values(assessments)), ...twin.insights];
 
   const currentMedications = twin.medications.filter((m) => m.endDate === null);
