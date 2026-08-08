@@ -23,6 +23,7 @@
 #include "../src/signal_core.h"
 #include "../src/alert_levels.h"
 #include "../src/payload.h"
+#include "../src/edge_policy.h"
 
 using namespace averis;
 
@@ -356,6 +357,210 @@ static void test_battery_curve() {
   CHECK(batteryPercent(3.70f) < batteryPercent(3.85f), "the curve is monotonic");
 }
 
+
+// ---------------------------------------------------------------------------
+// Edge policy — when the band is allowed to stay quiet.
+//
+// Suppression is the one optimisation in this firmware that can hide a
+// deteriorating patient, so every rule that bounds it is tested by the failure
+// it prevents rather than by the behaviour it produces.
+// ---------------------------------------------------------------------------
+static void test_edge_suppresses_a_resting_patient() {
+  EdgePolicy policy;
+  LastSent last;
+  uint32_t now = 0;
+
+  auto step = [&](float hr, float spo2, uint32_t advanceMs) {
+    now += advanceMs;
+    SendDecision d = shouldSend(last, now, hr, spo2, 36.6f, 80.0f,
+                                Movement::kResting, false, policy);
+    if (d.send) noteSent(last, now, hr, spo2, 36.6f, 80.0f, Movement::kResting, false);
+    return d;
+  };
+
+  CHECK(step(72, 98, 2000).reason == SendReason::kFirstReading,
+        "edge: the first reading always goes out");
+
+  // Two beats of jitter on a still wrist, five seconds apart. This is sensor
+  // noise, and sending it is sending noise.
+  CHECK(step(73, 98, 5000).send == false, "edge: a beat of jitter is suppressed");
+  CHECK(step(71, 98, 5000).send == false, "edge: jitter the other way is suppressed");
+  CHECK(step(72, 98, 5000).send == false, "edge: still suppressed while nothing happens");
+}
+
+static void test_edge_never_hides_a_slow_drift() {
+  // The rule that matters most, and the one a naive implementation gets wrong.
+  //
+  // Comparing each reading against the *previous* one lets saturation walk from
+  // 98% to 88% a single point at a time without ever transmitting, because no
+  // consecutive pair exceeds the deadband. Comparing against the last value the
+  // server actually saw makes the cumulative movement visible.
+  EdgePolicy policy;
+  policy.minIntervalMs = 0;   // isolate the drift rule from rate limiting
+  policy.heartbeatMs = 3600000;  // and from the heartbeat
+
+  LastSent last;
+  uint32_t now = 1000;
+
+  SendDecision first = shouldSend(last, now, 72, 99, 36.6f, 80.0f,
+                                  Movement::kResting, false, policy);
+  CHECK(first.send, "edge: drift test starts from a sent reading");
+  noteSent(last, now, 72, 99, 36.6f, 80.0f, Movement::kResting, false);
+
+  // 99 → 98.4: below the 1-point deadband, correctly suppressed.
+  now += 5000;
+  SendDecision small = shouldSend(last, now, 72, 98.4f, 36.6f, 80.0f,
+                                  Movement::kResting, false, policy);
+  CHECK(small.send == false, "edge: a sub-deadband step is suppressed");
+
+  // Another sub-deadband step, but now 1.2 points below what the server saw.
+  // Against the previous *reading* this is 0.6 and would be suppressed forever.
+  now += 5000;
+  SendDecision cumulative = shouldSend(last, now, 72, 97.8f, 36.6f, 80.0f,
+                                       Movement::kResting, false, policy);
+  CHECK(cumulative.send, "edge: cumulative drift past the deadband is sent");
+  CHECK(cumulative.reason == SendReason::kSignificantChange,
+        "edge: and it is reported as a change");
+}
+
+static void test_edge_always_sends_a_concerning_reading() {
+  EdgePolicy policy;
+  LastSent last;
+
+  // A reading two seconds after the last one, inside the minimum interval and
+  // inside every deadband — except that it is below the escalation point.
+  last.valid = true;
+  last.atMs = 10000;
+  last.heartRate = 72;
+  last.spo2 = 90.5f;
+  last.temperature = 36.6f;
+  last.battery = 80.0f;
+  last.movement = Movement::kResting;
+
+  SendDecision d = shouldSend(last, 11000, 72, 89.8f, 36.6f, 80.0f,
+                              Movement::kResting, false, policy);
+
+  CHECK(d.send, "edge: a reading below the escalation point is never suppressed");
+  CHECK(d.reason == SendReason::kAlerting, "edge: and it says why");
+
+  // A fall, likewise, regardless of how ordinary the vitals look.
+  SendDecision fall = shouldSend(last, 11000, 72, 98, 36.6f, 80.0f,
+                                 Movement::kResting, true, policy);
+  CHECK(fall.send, "edge: a latched fall is never suppressed");
+}
+
+static void test_edge_sends_the_recovery_too() {
+  // A server that last saw 88% needs to know the patient came back. Without
+  // this rule it would wait for the heartbeat to find out.
+  EdgePolicy policy;
+  LastSent last;
+  last.valid = true;
+  last.atMs = 10000;
+  last.heartRate = 72;
+  last.spo2 = 88.0f;
+  last.temperature = 36.6f;
+  last.battery = 80.0f;
+  last.movement = Movement::kResting;
+  last.wasAlerting = true;
+
+  SendDecision d = shouldSend(last, 11000, 72, 97.0f, 36.6f, 80.0f,
+                              Movement::kResting, false, policy);
+
+  CHECK(d.send, "edge: the recovery from an alert is sent");
+  CHECK(d.reason == SendReason::kAlertCleared, "edge: and it is labelled as recovery");
+}
+
+static void test_edge_heartbeat_bounds_the_silence() {
+  // A monitoring device that goes quiet is indistinguishable from one that has
+  // failed. The heartbeat is what lets the server treat silence as a fault.
+  EdgePolicy policy;
+  LastSent last;
+  last.valid = true;
+  last.atMs = 1000;
+  last.heartRate = 72;
+  last.spo2 = 98;
+  last.temperature = 36.6f;
+  last.battery = 80.0f;
+  last.movement = Movement::kResting;
+
+  SendDecision quiet = shouldSend(last, 1000 + policy.heartbeatMs - 1, 72, 98, 36.6f,
+                                  80.0f, Movement::kResting, false, policy);
+  CHECK(quiet.send == false, "edge: quiet just before the heartbeat");
+
+  SendDecision beat = shouldSend(last, 1000 + policy.heartbeatMs, 72, 98, 36.6f,
+                                 80.0f, Movement::kResting, false, policy);
+  CHECK(beat.send, "edge: the heartbeat bounds how long the band may stay silent");
+  CHECK(beat.reason == SendReason::kHeartbeat, "edge: and says it is a heartbeat");
+}
+
+static void test_edge_survives_millis_wraparound() {
+  // millis() rolls over about every 49.7 days. Unsigned subtraction stays
+  // correct across the wrap; comparing timestamps directly does not, and the
+  // symptom would be a band that goes silent for 49 days, once.
+  EdgePolicy policy;
+  LastSent last;
+  last.valid = true;
+  last.atMs = 0xFFFFF000u;   // shortly before the rollover
+  last.heartRate = 72;
+  last.spo2 = 98;
+  last.temperature = 36.6f;
+  last.battery = 80.0f;
+  last.movement = Movement::kResting;
+
+  // 8192 ms later, having wrapped through zero.
+  const uint32_t afterWrap = 0xFFFFF000u + 8192u;   // wraps by construction
+  CHECK(afterWrap < last.atMs, "edge: the test really does wrap the clock");
+
+  SendDecision d = shouldSend(last, afterWrap, 72, 98, 36.6f, 80.0f,
+                              Movement::kResting, false, policy);
+  CHECK(d.send == false, "edge: 8 seconds across the wrap is not a 49-day silence");
+}
+
+static void test_edge_movement_change_is_context() {
+  // A heart rate of 110 means different things resting and active.
+  EdgePolicy policy;
+  LastSent last;
+  last.valid = true;
+  last.atMs = 10000;
+  last.heartRate = 72;
+  last.spo2 = 98;
+  last.temperature = 36.6f;
+  last.battery = 80.0f;
+  last.movement = Movement::kResting;
+
+  SendDecision d = shouldSend(last, 10000 + policy.minIntervalMs + 1, 72, 98, 36.6f,
+                              80.0f, Movement::kActive, false, policy);
+
+  CHECK(d.send, "edge: a change of movement state is always sent");
+  CHECK(d.reason == SendReason::kMovementChanged, "edge: and says so");
+}
+
+static void test_edge_dropout_does_not_reset_the_reference() {
+  // If the pulse sensor drops out for a minute, the last heart rate the server
+  // received is still the right thing to measure the next one against. Storing
+  // the NaN would make the first reading after every dropout "significant" —
+  // a transmission per dropout, and dropouts come in runs.
+  LastSent last;
+  noteSent(last, 1000, 72.0f, 98.0f, 36.6f, 80.0f, Movement::kResting, false);
+  noteSent(last, 2000, kNoValue, 98.0f, 36.6f, 80.0f, Movement::kResting, false);
+
+  CHECK(hasValue(last.heartRate) && nearly(last.heartRate, 72.0f, 0.001f),
+        "edge: an absent channel does not overwrite the last sent value");
+}
+
+static void test_edge_stats_report_rather_than_assume() {
+  EdgeStats stats;
+  CHECK(stats.suppressionPercent() == 0.0f, "edge: no division by zero before any reading");
+
+  for (int i = 0; i < 8; i++) stats.record(false);
+  for (int i = 0; i < 2; i++) stats.record(true);
+
+  CHECK(stats.considered == 10 && stats.sent == 2 && stats.suppressed == 8,
+        "edge: the counters add up");
+  CHECK(nearly(stats.suppressionPercent(), 80.0f, 0.01f),
+        "edge: suppression is reported, not assumed");
+}
+
 int main() {
   printf("AVERIS wearable — firmware logic\n");
 
@@ -370,6 +575,16 @@ int main() {
   test_payload();
   test_timestamps();
   test_battery_curve();
+
+  test_edge_suppresses_a_resting_patient();
+  test_edge_never_hides_a_slow_drift();
+  test_edge_always_sends_a_concerning_reading();
+  test_edge_sends_the_recovery_too();
+  test_edge_heartbeat_bounds_the_silence();
+  test_edge_survives_millis_wraparound();
+  test_edge_movement_change_is_context();
+  test_edge_dropout_does_not_reset_the_reference();
+  test_edge_stats_report_rather_than_assume();
 
   printf("\n# checks %d\n# pass %d\n# fail %d\n", checks, checks - failures, failures);
   return failures == 0 ? 0 : 1;

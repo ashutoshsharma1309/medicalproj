@@ -33,6 +33,7 @@
 #include "signal_core.h"
 #include "alert_levels.h"
 #include "payload.h"
+#include "edge_policy.h"
 #include "sensors.h"
 #include "net.h"
 #include "ble.h"
@@ -57,6 +58,16 @@ RTC_DATA_ATTR uint32_t gLastEpochSeconds = 0;
 
 uint32_t gUplinkIntervalMs = AVERIS_UPLINK_INTERVAL_MS;
 uint32_t gLastUplinkMs = 0;
+
+// Edge policy — whether a sampled reading is worth the radio.
+//
+// The radio is the largest consumer on the board; a band that transmits every
+// reading spends most of its battery telling a server that a resting patient is
+// still resting. `edge_policy.h` bounds the suppression so it can only ever
+// delay a boring reading, never an interesting one.
+EdgePolicy gEdgePolicy;
+LastSent gLastSent;
+EdgeStats gEdgeStats;
 uint32_t gLastImuMs = 0;
 uint32_t gLastVitalsMs = 0;
 uint32_t gLastBatteryMs = 0;
@@ -261,7 +272,20 @@ void loop() {
     // moment a sensor comes back.
     const bool worthSending = hasValue(heartRate) || hasValue(spo2) || hasValue(temperature);
 
-    if (worthSending) {
+    // Does this reading tell the server anything it does not already know?
+    //
+    // Deliberately evaluated on every sampled reading rather than only on the
+    // ones that pass, so the suppression counters describe the real rate. A
+    // fall, an alerting value, a change of movement state, cumulative drift
+    // past the deadband and the heartbeat all force a send — see edge_policy.h
+    // for why each rule is there.
+    const SendDecision decision =
+        shouldSend(gLastSent, nowMs, heartRate, spo2, temperature, battery,
+                   gMotion.movement(), fallLatched, gEdgePolicy);
+
+    if (worthSending) gEdgeStats.record(decision.send);
+
+    if (worthSending && decision.send) {
       // Below the low-power threshold the band stops transmitting and keeps
       // only local alerting, so the last of the battery is spent buzzing at
       // the wearer rather than talking to a server.
@@ -270,6 +294,8 @@ void loop() {
 
       if (!radioAllowed) {
         gUplink.buffer(reading, haveClock ? iso : "");
+        noteSent(gLastSent, nowMs, heartRate, spo2, temperature, battery,
+                 gMotion.movement(), alert != LocalAlert::kNone);
       } else {
         const UplinkResult result = gUplink.send(reading);
 
@@ -279,14 +305,25 @@ void loop() {
           gUplink.buffer(reading, haveClock ? iso : "");
         }
 
+        // Recorded whether it was accepted or buffered, because both mean the
+        // reading is on its way. Recording only on acceptance would make an
+        // offline band re-evaluate every buffered reading as "changed" against
+        // a stale reference and buffer far more than it needs to.
+        noteSent(gLastSent, nowMs, heartRate, spo2, temperature, battery,
+                 gMotion.movement(), alert != LocalAlert::kNone);
+
 #if AVERIS_SERIAL_DEBUG
-        Serial.printf("uplink %s  hr=%.0f spo2=%.0f t=%.1f %s buffered=%u\n",
+        // Suppression rate on the wire, so a band whose sensor is noisier than
+        // expected shows up as a low figure rather than as nothing at all.
+        Serial.printf("uplink %s (%s)  hr=%.0f spo2=%.0f t=%.1f %s buffered=%u suppressed=%.0f%%\n",
                       result == UplinkResult::kAccepted ? "ok" : "deferred",
+                      sendReasonName(decision.reason),
                       static_cast<double>(hasValue(heartRate) ? heartRate : 0),
                       static_cast<double>(hasValue(spo2) ? spo2 : 0),
                       static_cast<double>(hasValue(temperature) ? temperature : 0),
                       movementName(gMotion.movement()),
-                      static_cast<unsigned>(gUplink.bufferedCount()));
+                      static_cast<unsigned>(gUplink.bufferedCount()),
+                      static_cast<double>(gEdgeStats.suppressionPercent()));
 #endif
       }
     }
