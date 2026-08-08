@@ -4,7 +4,7 @@
 -- Paste into the Supabase SQL Editor and run once:
 --   https://supabase.com/dashboard/project/<project-ref>/sql/new
 --
--- 14 migrations: 30 tables, 99 RLS policies, 14 helper
+-- 16 migrations: 30 tables, 99 RLS policies, 15 helper
 -- functions, the 'medical-documents' storage bucket, pgvector retrieval, the
 -- IoT device registry and the care-team access model.
 --
@@ -3703,3 +3703,117 @@ comment on function private.resolve_device is
 
 revoke all on function private.resolve_device(text) from public;
 grant execute on function private.resolve_device(text) to service_role;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 20260809093000_iot_phase5_token_uniqueness.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ===========================================================================
+-- AVERIS IoT — Phase 5b: one token hash, one device
+--
+-- Found by running the device-authentication assertions against a real
+-- database for the first time: `private.resolve_device` is declared
+-- `returns table` and had nothing guaranteeing it returned a single row.
+--
+-- ── Is this exploitable today? No. It is still wrong. ──────────────────────
+--
+-- A device token is 256 bits of CSPRNG output, so two devices colliding by
+-- accident will not happen. A patient cannot deliberately collide with someone
+-- else's device either, because doing so requires knowing that device's hash
+-- and the column is not readable by any client role.
+--
+-- What makes it worth fixing anyway is the shape of the failure if it ever did
+-- occur. `store.py` reads `rows[0]`. With two matching rows, the ingest service
+-- would resolve a token to whichever device Postgres returned first — writing
+-- one patient's vital signs into another patient's chart, with no error
+-- anywhere and nothing on either dashboard looking wrong. That is the worst
+-- failure mode this system has, and it should be impossible by construction
+-- rather than improbable by arithmetic.
+--
+-- The constraint also documents an assumption the ingest path already makes.
+-- Code that reads `rows[0]` is asserting uniqueness; better to assert it where
+-- the database can enforce it.
+-- ===========================================================================
+
+-- Will fail loudly if duplicates already exist, which is the correct
+-- behaviour: two devices sharing a credential is not a state to migrate
+-- quietly past.
+alter table public.iot_devices
+  add constraint iot_devices_token_hash_unique unique (token_hash);
+
+comment on constraint iot_devices_token_hash_unique on public.iot_devices is
+  'One token hash, one device. resolve_device() reads rows[0]; this is what makes that safe.';
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 20260809094500_care_team_directory.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ===========================================================================
+-- AVERIS — a patient could not see who is on their own care team
+--
+-- Found by executing the Phase 4b revocation assertions against a real
+-- database. The test tried to revoke a caregiver with:
+--
+--   update public.patient_caregiver_assignments set status = 'REVOKED'
+--    where caregiver_id = (select id from public.users where email = ...)
+--
+-- and revoked nothing — because the subquery returned no rows. A patient can
+-- read their own `users` row and the rows of patients they are a care team
+-- member *for*; there was no policy letting them read the row of somebody they
+-- had granted access *to*.
+--
+-- ── Why this matters more than a missing name ──────────────────────────────
+--
+-- `/care-team` lists caregivers so a patient can withdraw access. Without the
+-- identity, every row renders as "Caregiver" with no name and no email — and a
+-- patient looking at two identical unnamed rows cannot revoke the right one.
+-- Consent that cannot be exercised specifically is not much better than
+-- consent that cannot be exercised at all, and this is the page the entire
+-- Phase 4 access model rests on.
+--
+-- It is the mirror of the Phase 4c defect: that one stopped a caregiver seeing
+-- the patient, this one stopped the patient seeing the caregiver. Both came
+-- from the same assumption — that the identity policy written for one
+-- direction covered both.
+--
+-- ── The same shape as the fix that came before it ──────────────────────────
+--
+-- A SECURITY DEFINER function taking no arguments, returning only what the
+-- page needs. Not a policy on `users`: a policy wide enough to cover this
+-- would make every clinician's and caregiver's row readable by any patient who
+-- had ever assigned them, and the directory is a narrower grant that returns
+-- three columns to exactly the person who granted the access.
+-- ===========================================================================
+
+create or replace function public.my_care_team_directory()
+returns table (
+  user_id   uuid,
+  full_name text,
+  email     text,
+  care_role text
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  -- Doctors this patient has assigned, in any state. Revoked entries stay
+  -- visible on /care-team so "who could see my data in March" is answerable,
+  -- and a row with no name would leave that question half-answered.
+  select u.id, u.full_name, u.email, 'DOCTOR'
+  from public.patient_doctor_assignments a
+  join public.doctors d on d.id = a.doctor_id
+  join public.users u on u.id = d.user_id
+  where a.patient_id = private.current_patient_profile_id()
+
+  union
+
+  select u.id, u.full_name, u.email, 'CAREGIVER'
+  from public.patient_caregiver_assignments c
+  join public.users u on u.id = c.caregiver_id
+  where c.patient_id = private.current_patient_profile_id();
+$$;
+
+comment on function public.my_care_team_directory() is
+  'Who the calling patient has granted access to. Takes no arguments; scoped entirely by the caller''s own profile.';
+
+revoke all on function public.my_care_team_directory() from public;
+grant execute on function public.my_care_team_directory() to authenticated;
