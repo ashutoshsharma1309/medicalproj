@@ -105,11 +105,14 @@ docker compose up
 ## Verification
 
 ```bash
-npm test                     # 236 tests — no database, no network, no API key
+npm test                     # 423 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
 
-# 119 RLS assertions against the unmodified production migrations
+# 105 Python tests: wire-contract conformance, the AI engine, escalation
+iot-service/.venv/bin/python -m pytest iot-service/tests ai_engine/tests -q
+
+# 240 RLS assertions against the unmodified production migrations
 PG_CONTAINER=<pg-container> PG_USER=postgres ./supabase/tests/run.sh
 ```
 
