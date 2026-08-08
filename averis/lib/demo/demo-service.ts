@@ -111,16 +111,20 @@ export async function loadDemoState(
     ? Math.round((Date.now() - Date.parse(newest.recorded_at)) / 1000)
     : null;
 
+  // The six stages the brief describes, in the order a judge should watch
+  // them. Each one is checked against live data — a tick here means the thing
+  // actually happened, not that a script claims it did.
   const steps: DemoStep[] = [
     {
-      id: "device",
-      title: "A device is registered",
+      id: "connect",
+      title: "1 · The patient connects a wearable",
       point:
-        "Every reading is authenticated by a device token AVERIS stores only as a hash. " +
-        "Nothing can write into a chart without one.",
+        "Every reading is authenticated by a device token AVERIS stores only as a SHA-256 " +
+        "hash. Nothing can write into a chart without one, and the owner is read from the " +
+        "device row rather than from the payload.",
       done: simulator !== null,
       detail: simulator
-        ? `${simulator.device_key} registered as a simulator.`
+        ? `${simulator.device_key} registered, and marked as a simulator so every row it writes stays labelled.`
         : deviceRows.length > 0
           ? "A device is registered, but not marked as a simulator. Register one with the box ticked."
           : "No device yet.",
@@ -128,12 +132,13 @@ export async function loadDemoState(
     },
     {
       id: "streaming",
-      title: "Readings are arriving",
+      title: "2 · Live vitals appear",
       point:
-        "The simulator speaks the same HTTP contract the ESP32 firmware does. " +
-        "Swapping one for the other changes nothing else in the system.",
-      // Two minutes, not "any reading ever": this step is about the stream
-      // being live now, which is the thing a judge is watching for.
+        "The simulator speaks the same HTTP contract the ESP32 firmware does — same " +
+        "endpoint, same JSON, same bearer token. Swapping one for the other changes " +
+        "nothing else in the system.",
+      // Two minutes, not "any reading ever". This step is about the stream
+      // being live *now*, which is what a judge is watching for.
       done: newestAgeSeconds !== null && newestAgeSeconds < 120,
       detail:
         newest === null
@@ -145,58 +150,64 @@ export async function loadDemoState(
     },
     {
       id: "risk",
-      title: "The AI engine has scored the stream",
+      title: "3 · AI analyses the pattern",
       point:
-        "Risk is computed from the readings by a rule-and-model engine, and every score " +
-        "carries the measurements that produced it. Nothing is a black box.",
+        "The engine reads a window of the stream, not a single value — which is how it " +
+        "sees a decline in which every individual reading still sits inside the normal " +
+        "range. Every score carries the measurements that produced it.",
       done: prediction !== null,
       detail: prediction
         ? `Latest assessment ${Math.round(Number(prediction.risk_score) * 100)}% (${prediction.risk_category}).`
-        : "No assessment yet — the engine runs on a window of readings.",
-      href: "/monitoring",
+        : "No assessment yet — the engine runs over a window, so it needs a few readings.",
+      href: "/risk",
     },
     {
-      id: "alert",
-      title: "A threshold was crossed",
+      id: "abnormal",
+      title: "4 · An abnormal condition is simulated",
       point:
-        "Alerts are rules, not predictions. Each one names the value measured and the " +
-        "threshold it crossed, so a patient can check it.",
+        "Thresholds are rules, not predictions. Each alert names the value measured and " +
+        "the line it crossed, so a patient can check it — and a WARNING deliberately does " +
+        "not escalate.",
       done: alertRows.length > 0,
       detail:
         alertRows.length === 0
-          ? "No alerts — run the simulator in warning or emergency mode."
-          : `${alertRows.length} alert${alertRows.length === 1 ? "" : "s"}, ` +
+          ? "No alerts yet — run the emergency sequence below."
+          : `${alertRows.length} alert${alertRows.length === 1 ? "" : "s"} raised, ` +
             `${criticalAlerts.length} critical.`,
       href: "/monitoring",
     },
     {
       id: "emergency",
-      title: "An emergency reached a person",
+      title: "5 · The doctor receives an emergency alert",
       point:
-        "A critical finding is escalated into an event that stays in a clinician's queue " +
-        "until someone responds. Raising it and notifying the care team are one transaction.",
-      done: emergencyRows.length > 0,
+        "A critical finding becomes an event that stays in a clinician's queue until " +
+        "somebody responds. Raising it and notifying the care team happen in one " +
+        "transaction — an emergency nobody was told about is the failure this prevents.",
+      done: emergencyRows.length > 0 && doctorRows.length > 0,
       detail:
         emergencyRows.length === 0
-          ? "No emergency events — emergency mode crosses the critical thresholds."
-          : `${emergencyRows.length} event${emergencyRows.length === 1 ? "" : "s"}: ` +
-            emergencyRows
-              .map((e) => `${e.event_type.toLowerCase().replace(/_/g, " ")} (${e.status.toLowerCase()})`)
-              .join(", "),
-      href: "/monitoring",
+          ? "No emergency events yet."
+          : doctorRows.length === 0
+            ? `${emergencyRows.length} event${emergencyRows.length === 1 ? "" : "s"} raised, but no clinician has been granted access — grant one from Care team to see the notification arrive.`
+            : `${emergencyRows.length} event${emergencyRows.length === 1 ? "" : "s"}: ` +
+              emergencyRows
+                .map((e) => `${e.event_type.toLowerCase().replace(/_/g, " ")} (${e.status.toLowerCase()})`)
+                .join(", "),
+      href: "/clinical",
     },
     {
-      id: "clinician",
-      title: "A clinician can see it",
+      id: "explain",
+      title: "6 · AVERIS explains why",
       point:
-        "The doctor sees only patients assigned to them, and the patient granted that " +
-        "access themselves. Row Level Security enforces it in the database, not in the UI.",
-      done: doctorRows.length > 0,
+        "The score is decomposed into the measurements that produced it, with exact " +
+        "shares rather than attributions. A number nobody can take apart is a number " +
+        "nobody should act on.",
+      done: prediction !== null && alertRows.length > 0,
       detail:
-        doctorRows.length === 0
-          ? "No clinician assigned yet — grant access from Care team."
-          : `${doctorRows.length} clinician${doctorRows.length === 1 ? "" : "s"} can see this chart.`,
-      href: "/care-team",
+        prediction === null
+          ? "Needs an assessment to explain."
+          : "Open the risk view to see each contributing measurement and its share.",
+      href: "/risk",
     },
   ];
 

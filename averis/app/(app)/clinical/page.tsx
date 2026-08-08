@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadCaseload, triageReason } from "@/lib/care/care-team-service";
 import type { CaseloadPatient } from "@/lib/care/triage";
 import { Card, CardHeader, Chip, Callout } from "@/components/ui";
+import { StatTile, AlertBanner } from "@/components/ui/clinical";
 import { formatDate } from "@/lib/utils/format";
 import { recordAudit } from "@/lib/audit/audit-service";
 import { listCareNotices } from "@/lib/care/care-inbox-service";
@@ -78,20 +79,59 @@ export default async function ClinicalPage() {
     (p) => p.openEmergencies > 0 || p.riskLevel === "HIGH" || p.riskLevel === "CRITICAL",
   );
 
+  const openEmergencyCount = caseload.reduce((sum, p) => sum + p.openEmergencies, 0);
+
+  // A patient nobody is measuring is a patient who could be deteriorating
+  // unobserved, which is why this is counted beside the clinical numbers
+  // rather than buried in the device pages.
+  const silentCount = caseload.filter(
+    (p) => p.deviceStatus === "OFFLINE" || p.deviceStatus === null,
+  ).length;
+
   return (
     <div className="space-y-7">
       <header>
-        <p className="eyebrow">AVERIS Clinical</p>
+        <p className="eyebrow">Clinical monitoring centre</p>
         <h1 className="mt-2 text-[24px] font-semibold leading-tight">
           {doctor.full_name}
         </h1>
         <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
           {[doctor.specialization, doctor.hospital_name].filter(Boolean).join(" · ") ||
             "Clinical monitoring"}
-          {" — "}
-          {caseload.length} assigned {caseload.length === 1 ? "patient" : "patients"}.
         </p>
       </header>
+
+      {/* The fleet in four numbers, above everything.
+          A clinician arriving at this page is asking one question — "is anyone
+          in trouble right now?" — and a list, however well sorted, makes them
+          read it to find out. These four answer it before they scroll. */}
+      <Card>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 px-6 py-5 sm:grid-cols-4">
+          <StatTile
+            label="Needing attention"
+            value={needingAttention.length}
+            tone={needingAttention.length > 0 ? "critical" : "positive"}
+            footnote={needingAttention.length === 0 ? "nobody" : "high risk or open event"}
+          />
+          <StatTile
+            label="Open emergencies"
+            value={openEmergencyCount}
+            tone={openEmergencyCount > 0 ? "critical" : "positive"}
+            footnote={openEmergencyCount > 0 ? "awaiting response" : "none"}
+          />
+          <StatTile
+            label="Not reporting"
+            value={silentCount}
+            tone={silentCount > 0 ? "notice" : "positive"}
+            footnote={silentCount > 0 ? "not being monitored" : "all reporting"}
+          />
+          <StatTile
+            label="Assigned patients"
+            value={caseload.length}
+            footnote="under your care"
+          />
+        </dl>
+      </Card>
 
       {/* Above the caseload: an emergency raised two minutes ago outranks the
           list of everyone who is currently fine. */}
@@ -118,22 +158,30 @@ export default async function ClinicalPage() {
       ) : (
         <>
           {needingAttention.length > 0 ? (
-            <Callout tone="critical" title={`${needingAttention.length} needing attention`}>
-              {needingAttention.map((p) => p.fullName).join(", ")} —{" "}
-              {needingAttention.filter((p) => p.openEmergencies > 0).length} with open emergency
-              events.
-            </Callout>
+            <AlertBanner
+              title={`${needingAttention.length} ${needingAttention.length === 1 ? "patient needs" : "patients need"} attention`}
+              action={
+                <a href="#caseload" className="btn btn-secondary whitespace-nowrap">
+                  Go to caseload
+                </a>
+              }
+            >
+              {needingAttention.map((p) => p.fullName).join(", ")}
+              {openEmergencyCount > 0 &&
+                ` — ${openEmergencyCount} emergency ${openEmergencyCount === 1 ? "event" : "events"} still open.`}
+            </AlertBanner>
           ) : (
             <Callout tone="brand" title="No open emergencies">
               Every assigned patient is below the high-risk threshold. Patients whose devices
-              stop reporting still appear near the top of the list.
+              stop reporting still appear near the top of the list — a silent band is not the
+              same as a well patient.
             </Callout>
           )}
 
-          <Card>
+          <Card id="caseload">
             <CardHeader
               eyebrow="Caseload"
-              title="Patients by priority"
+              title="Which patient needs attention?"
               action={
                 <span className="mono text-[12.5px] text-muted">
                   emergencies first, then risk

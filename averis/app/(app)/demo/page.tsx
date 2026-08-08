@@ -3,8 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Chip, Callout } from "@/components/ui";
+import { StepList } from "@/components/ui/clinical";
 import { loadDemoState, demoModeEnabled } from "@/lib/demo/demo-service";
 import { DemoRefresh } from "./DemoRefresh";
+import { EmergencySimulator } from "./EmergencySimulator";
 
 export const metadata = { title: "Guided demonstration" };
 export const dynamic = "force-dynamic";
@@ -59,42 +61,60 @@ export default async function DemoPage() {
         dataset that nothing downstream could classify.
       </Callout>
 
+      {/* The one-click path. Placed above the checklist because it is what a
+          judge should press first — the checklist then moves under them, which
+          is the demonstration. */}
+      <Card>
+        <CardHeader
+          eyebrow="One click"
+          title="Simulate an emergency"
+          action={
+            <span className="mono text-[12.5px] text-muted">
+              real pipeline, no shortcuts
+            </span>
+          }
+        />
+        <EmergencySimulator
+          deviceKey={state.simulatorKey}
+          ingestUrl={process.env.NEXT_PUBLIC_IOT_HTTP_URL ?? null}
+        />
+      </Card>
+
       <Card>
         <CardHeader
           eyebrow="Progress"
-          title={`${state.completed} of ${state.steps.length} steps`}
+          title={`${state.completed} of ${state.steps.length} stages`}
           action={<DemoRefresh />}
         />
-        <ol className="divide-y divide-rule">
-          {state.steps.map((step, index) => (
-            <li key={step.id} className="px-6 py-4">
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
-                <span
-                  aria-hidden="true"
-                  className={`mono text-[13px] ${step.done ? "text-[var(--color-positive)]" : "text-muted"}`}
-                >
-                  {step.done ? "✓" : `${index + 1}.`}
-                </span>
-                <span className="text-[15px] font-medium">{step.title}</span>
-                {step.done && <Chip tone="positive">done</Chip>}
+        <StepList
+          steps={state.steps.map((step, index) => ({
+            id: step.id,
+            title: step.title,
+            state: step.done
+              ? ("done" as const)
+              : index === state.completed
+                ? ("active" as const)
+                : ("pending" as const),
+            detail: step.point,
+            aside: (
+              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="mono text-[12px] text-muted">{step.detail}</span>
                 {step.href && (
-                  <Link href={step.href} className="text-[13px] text-brand hover:underline">
+                  <Link href={step.href} className="text-[12.5px] text-brand hover:underline">
                     see it →
                   </Link>
                 )}
               </div>
-
-              <p className="mt-1.5 max-w-2xl text-[13.5px] leading-relaxed text-ink-soft">
-                {step.point}
-              </p>
-              <p className="mono mt-1.5 text-[12px] text-muted">{step.detail}</p>
-            </li>
-          ))}
-        </ol>
+            ),
+          }))}
+        />
       </Card>
 
       <Card>
-        <CardHeader eyebrow="Run it" title="Three commands" />
+        <CardHeader
+          eyebrow="Or from a terminal"
+          title="The same thing, three commands"
+        />
         <div className="space-y-5 px-6 py-5">
           {state.simulatorKey === null && (
             <Callout tone="brand" title="Register a simulator device first">

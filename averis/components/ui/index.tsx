@@ -91,11 +91,18 @@ export function TextArea({ className = "", ...props }: TextareaHTMLAttributes<HT
 export function Card({
   children,
   className = "",
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  /** For in-page anchors — "jump to the caseload" from a banner above it. */
+  id?: string;
 }) {
-  return <section className={`surface ${className}`}>{children}</section>;
+  return (
+    <section id={id} className={`surface ${className}`}>
+      {children}
+    </section>
+  );
 }
 
 export function CardHeader({
