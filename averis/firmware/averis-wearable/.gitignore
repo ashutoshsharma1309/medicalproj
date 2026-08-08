@@ -1,0 +1,3 @@
+# Holds the device token — one per band, never shared. See config.example.h.
+src/config.h
+.pio/
