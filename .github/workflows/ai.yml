@@ -94,3 +94,30 @@ jobs:
         run: |
           user=$(docker run --rm --entrypoint sh averis-ai:${{ github.sha }} -c 'id -u')
           test "$user" != "0" || { echo "::error::AI service image runs as root"; exit 1; }
+
+      # The image must also *run*. A build-only job passes on an image whose
+      # process dies on import — which is exactly what happened here: the module
+      # located ai_engine by counting parent directories, the count was right for
+      # the development layout and wrong inside the container, and the build was
+      # green while the container exited 1 every time it started.
+      - name: The container starts and serves
+        run: |
+          docker run -d --name ai-check -e AI_SERVICE_TOKEN=ci-token \
+            -p 8100:8100 averis-ai:${{ github.sha }}
+
+          for i in $(seq 1 40); do
+            curl -sf http://127.0.0.1:8100/api/health/live >/dev/null && break
+            sleep 1
+          done
+
+          if ! curl -sf http://127.0.0.1:8100/api/health/ready | tee /dev/stderr | grep -q '"vitals_engine":true'; then
+            echo "::error::the container did not become ready"
+            docker logs ai-check
+            exit 1
+          fi
+
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            http://127.0.0.1:8100/api/v1/assess -d '{"readings":[]}')
+          test "$code" = "401" || { echo "::error::unauthenticated assess returned $code"; docker logs ai-check; exit 1; }
+
+          docker rm -f ai-check

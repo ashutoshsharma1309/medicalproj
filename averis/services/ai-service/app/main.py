@@ -59,10 +59,27 @@ from typing import Any
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 
-# ai_engine lives at the repository root rather than being packaged. The
-# container copies it in beside this service; the path insert keeps the
-# development layout working too.
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+# ai_engine lives at the repository root rather than being packaged, so it has
+# to be found on the path before the imports below.
+#
+# Found by searching upward for the directory that contains it, rather than by
+# counting levels. The two layouts differ: in development this file is at
+# averis/services/ai-service/app/main.py and the root is four levels up; in the
+# container it is at /app/app/main.py with ai_engine beside it, one level up.
+# A fixed `parents[3]` raises IndexError on import inside the container — the
+# image builds perfectly and the process dies the moment it starts, which is a
+# failure a build-only CI job reports as a success.
+def _engine_root() -> Path:
+    here = Path(__file__).resolve()
+    for candidate in here.parents:
+        if (candidate / "ai_engine").is_dir():
+            return candidate
+    # Nothing found: leave the path alone and let the import below fail with a
+    # message about ai_engine rather than about a path index.
+    return here.parent
+
+
+sys.path.insert(0, str(_engine_root()))
 
 from ai_engine.prediction.engine import analyse_stream  # noqa: E402
 from ai_engine.models.fall_detector import model_card, predict as predict_fall  # noqa: E402

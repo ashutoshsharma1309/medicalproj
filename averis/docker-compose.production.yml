@@ -1,0 +1,214 @@
+# ===========================================================================
+# AVERIS — production topology
+#
+#   docker compose -f docker-compose.production.yml up -d
+#
+# Five services and their dependencies, arranged the way they are deployed:
+# each with its own resource envelope, its own restart policy, and — the part
+# that matters most — its own set of secrets.
+#
+# ── What this file is and is not ───────────────────────────────────────────
+#
+# It **is** the reference topology: which services exist, what each one is
+# allowed to reach, and which secrets each holds. Running it on one host is a
+# legitimate small deployment — a single clinic, a pilot ward — and it is the
+# fastest way to see the whole system running as separate processes.
+#
+# It is **not** how a thousand-patient deployment runs. That is Cloud Run or
+# GKE, where the orchestrator handles replicas, rollout and TLS termination;
+# `docs/cloud_architecture.md` carries that. What survives the move is the
+# topology below, which is why this file is worth being precise about.
+#
+# ── The secret boundary, which is the point of the file ────────────────────
+#
+# `web` has no `SUPABASE_SERVICE_ROLE_KEY`. It queries Postgres as the
+# signed-in user over Row Level Security, so a bug in a page cannot reach a
+# chart the policy would refuse. Three services hold the service-role key —
+# worker, iot, and nothing else — and `ai` holds no database credential of any
+# kind.
+#
+# If a future edit adds the service-role key to `web` to make something work,
+# that edit has removed the security model. There is no configuration under
+# which the web app needs it.
+# ===========================================================================
+
+name: averis
+
+x-logging: &logging
+  driver: json-file
+  options:
+    # Bounded. An unbounded json-file driver fills the host disk, and the
+    # symptom is every service failing at once for no visible reason.
+    max-size: "20m"
+    max-file: "5"
+
+x-restart: &restart
+  # `unless-stopped` rather than `always`: an operator who deliberately stops a
+  # service during an incident should not have Docker restart it under them.
+  restart: unless-stopped
+
+services:
+  # ---------------------------------------------------------------- web ---
+  web:
+    <<: *restart
+    logging: *logging
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* are inlined at build time, not read at runtime. A
+        # redeploy with a new value and the same image changes nothing, which
+        # is a confusing hour if you have not hit it before.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_IOT_WS_URL: ${NEXT_PUBLIC_IOT_WS_URL}
+        NEXT_PUBLIC_IOT_HTTP_URL: ${NEXT_PUBLIC_IOT_HTTP_URL}
+    environment:
+      SERVICE_ROLE: web
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      # Deliberately absent: SUPABASE_SERVICE_ROLE_KEY. See the header.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3100:3100"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1G
+
+  # ------------------------------------------------------------- worker ---
+  worker:
+    <<: *restart
+    logging: *logging
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SERVICE_ROLE: worker
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      # Holds it: the worker processes documents and recomputes baselines for
+      # every patient, which cannot be scoped to one signed-in user.
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      REDIS_URL: redis://redis:6379
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      redis:
+        condition: service_healthy
+    # No ports. It has no HTTP surface anybody should reach, and publishing one
+    # would expose a process holding a key that bypasses row security.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ---------------------------------------------------------------- iot ---
+  iot:
+    <<: *restart
+    logging: *logging
+    build:
+      context: .
+      dockerfile: iot-service/Dockerfile
+    environment:
+      SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Must list the web app's real origin. It defaults to localhost:3100,
+      # which is right for a laptop and wrong for everything else — a browser
+      # that cannot open the live socket is the symptom.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3100}
+      MAX_READINGS_PER_MINUTE: ${MAX_READINGS_PER_MINUTE:-60}
+      UPLINK_INTERVAL_MS: ${UPLINK_INTERVAL_MS:-2000}
+      # When set, inference happens in the ai service. When absent, it happens
+      # in-process — a supported deployment, not a degraded one.
+      AI_SERVICE_URL: http://ai:8100
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8000:8000"
+    depends_on:
+      ai:
+        # `service_started`, not `service_healthy`. The ingest service must come
+        # up even when inference does not — it falls back locally, and blocking
+        # device ingestion on a model server would invert the priority.
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  # ----------------------------------------------------------------- ai ---
+  ai:
+    <<: *restart
+    logging: *logging
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    environment:
+      # The only secret it holds, and it is a service-to-service shared secret
+      # rather than a database credential. This container has no route to
+      # patient data and nothing to leak if it were compromised.
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # No published ports. Reachable only from the compose network, because
+    # nothing outside it has any business calling inference directly.
+    expose:
+      - "8100"
+    deploy:
+      resources:
+        limits:
+          # The largest allocation here: it is the only CPU-bound service, and
+          # the reason it is a separate container at all.
+          cpus: "2.0"
+          memory: 2G
+
+  # -------------------------------------------------------------- redis ---
+  redis:
+    <<: *restart
+    logging: *logging
+    image: redis:7-alpine
+    # `allkeys-lru` with a hard cap. Without maxmemory, Redis grows until the
+    # host OOMs and takes every service with it; with it, the cache evicts and
+    # the application falls back to the database.
+    command: >-
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    # Persistence deliberately off. Everything in here is a cache or a
+    # rate-limit counter — losing it costs a cold cache, and persisting it
+    # would put patient-derived data in a second durable store with its own
+    # backup and retention questions.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    expose:
+      - "6379"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 320M
+
+# No `volumes:` block, and that is deliberate.
+#
+# Postgres is Supabase — managed, backed up, and outside this file. A local
+# Postgres volume here would be the easiest way for a pilot deployment to
+# accumulate patient data on a single unbacked-up host, and the person who set
+# it up would not find out until the disk failed.
