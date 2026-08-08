@@ -2,12 +2,9 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import {
-  findDoctorAction,
-  assignDoctorAction,
-  EMPTY_LOOKUP,
-  type DoctorLookupState,
-} from "./actions";
+import { findDoctorAction, assignDoctorAction, type DoctorLookupState } from "./actions";
+
+const INITIAL: DoctorLookupState = { found: null, message: null, error: null };
 
 /**
  * Adding a clinician, in two steps.
@@ -22,8 +19,8 @@ import {
  * the platform.
  */
 export function AddDoctor() {
-  const [lookup, findAction] = useActionState(findDoctorAction, EMPTY_LOOKUP);
-  const [grant, grantAction] = useActionState(assignDoctorAction, EMPTY_LOOKUP);
+  const [lookup, findAction] = useActionState(findDoctorAction, INITIAL);
+  const [grant, grantAction] = useActionState(assignDoctorAction, INITIAL);
 
   // The grant's result outranks the lookup's: after a successful grant the
   // found card is stale, and leaving it on screen invites a second click.

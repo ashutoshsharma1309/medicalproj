@@ -34,7 +34,8 @@ export type DoctorLookupState = {
   error: string | null;
 };
 
-export const EMPTY_LOOKUP: DoctorLookupState = { found: null, message: null, error: null };
+// Module-private: a "use server" file may only export async functions.
+const EMPTY_LOOKUP: DoctorLookupState = { found: null, message: null, error: null };
 
 /**
  * Step one: identify the clinician.
@@ -146,7 +147,7 @@ export async function assignDoctorAction(
 
 export type CaregiverInviteState = { message: string | null; error: string | null };
 
-export const EMPTY_INVITE: CaregiverInviteState = { message: null, error: null };
+const EMPTY_INVITE: CaregiverInviteState = { message: null, error: null };
 
 export async function inviteCaregiverAction(
   _previous: CaregiverInviteState,

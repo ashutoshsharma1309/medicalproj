@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { askAboutMyMonitoring, EMPTY_ASK } from "./actions";
+import { askAboutMyMonitoring, type MonitoringAskState } from "./actions";
 import { VoiceButton } from "@/components/health/VoiceButton";
 
 /**
@@ -28,8 +28,10 @@ const SUGGESTIONS = [
   "Is my band still recording?",
 ];
 
+const INITIAL: MonitoringAskState = { question: "", answer: null, error: null };
+
 export function AskMonitoring() {
-  const [state, formAction] = useActionState(askAboutMyMonitoring, EMPTY_ASK);
+  const [state, formAction] = useActionState(askAboutMyMonitoring, INITIAL);
   const [question, setQuestion] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const [pendingSubmit, setPendingSubmit] = useState(false);

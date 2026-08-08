@@ -154,7 +154,9 @@ export type AssistantState = {
   error: string | null;
 };
 
-export const EMPTY_ASSISTANT: AssistantState = { question: "", answer: null, error: null };
+// Module-private: a "use server" file may only *export* async functions, so
+// the initial state the form starts from lives in the client component.
+const EMPTY_STATE: AssistantState = { question: "", answer: null, error: null };
 
 /**
  * Asking about a patient.
@@ -176,16 +178,16 @@ export async function askAssistantAction(
   const question = String(formData.get("question") ?? "").trim();
 
   if (question.length < 3) {
-    return { ...EMPTY_ASSISTANT, error: "Ask a question about this patient's monitoring data." };
+    return { ...EMPTY_STATE, error: "Ask a question about this patient's monitoring data." };
   }
-  if (!patientId) return { ...EMPTY_ASSISTANT, error: "No patient selected." };
+  if (!patientId) return { ...EMPTY_STATE, error: "No patient selected." };
 
   const account = await requireUser();
 
   const limited = await checkRateLimit(rateLimitStore(), "careAssistant", account.appUserId);
   if (!limited.allowed) {
     return {
-      ...EMPTY_ASSISTANT,
+      ...EMPTY_STATE,
       error: `You have asked a lot of questions recently. Try again in about ${Math.ceil(
         limited.retryAfterMs / 60000,
       )} minutes.`,
@@ -211,7 +213,7 @@ export async function askAssistantAction(
     return { question, answer, error: null };
   } catch {
     return {
-      ...EMPTY_ASSISTANT,
+      ...EMPTY_STATE,
       error: "Something went wrong reading this patient's monitoring data. Try again.",
     };
   }

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { askAssistantAction, EMPTY_ASSISTANT, type AssistantState } from "./actions";
+import { askAssistantAction, type AssistantState } from "./actions";
 import { VoiceButton } from "@/components/health/VoiceButton";
 
 /**
@@ -26,8 +26,10 @@ const SUGGESTIONS = [
   "Is the device still reporting?",
 ];
 
+const INITIAL: AssistantState = { question: "", answer: null, error: null };
+
 export function AssistantPanel({ patientId }: { patientId: string }) {
-  const [state, formAction] = useActionState(askAssistantAction, EMPTY_ASSISTANT);
+  const [state, formAction] = useActionState(askAssistantAction, INITIAL);
   const [question, setQuestion] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const [pendingSubmit, setPendingSubmit] = useState(false);

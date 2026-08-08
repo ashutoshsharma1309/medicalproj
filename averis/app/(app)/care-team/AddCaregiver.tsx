@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { inviteCaregiverAction, EMPTY_INVITE } from "./actions";
+import { inviteCaregiverAction, type CaregiverInviteState } from "./actions";
 
 /**
  * Adding someone who is not a clinician.
@@ -34,8 +34,10 @@ const LEVELS = [
   },
 ] as const;
 
+const INITIAL: CaregiverInviteState = { message: null, error: null };
+
 export function AddCaregiver() {
-  const [state, formAction] = useActionState(inviteCaregiverAction, EMPTY_INVITE);
+  const [state, formAction] = useActionState(inviteCaregiverAction, INITIAL);
 
   return (
     <form action={formAction} className="px-6 py-5">

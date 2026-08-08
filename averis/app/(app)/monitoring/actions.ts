@@ -23,7 +23,8 @@ export type MonitoringAskState = {
   error: string | null;
 };
 
-export const EMPTY_ASK: MonitoringAskState = { question: "", answer: null, error: null };
+// Module-private: a "use server" file may only export async functions.
+const EMPTY_ASK: MonitoringAskState = { question: "", answer: null, error: null };
 
 export async function askAboutMyMonitoring(
   _previous: MonitoringAskState,
