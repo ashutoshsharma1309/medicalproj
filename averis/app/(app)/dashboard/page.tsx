@@ -6,6 +6,7 @@ import { Card, CardHeader, Chip, Callout } from "@/components/ui";
 import { StatTile, AlertBanner } from "@/components/ui/clinical";
 import { HealthScoreCard } from "@/components/health/HealthScoreCard";
 import { loadCommandCenter } from "@/lib/health/command-center";
+import { loadVitalsTwin } from "@/lib/health/twin-service";
 import { classifyVital, STATUS_LABEL } from "@/lib/iot/vital-status";
 import { EMERGENCY_LABEL, type EmergencyType } from "@/lib/care/escalation";
 import { firstNameOf, formatDate } from "@/lib/utils/format";
@@ -57,7 +58,10 @@ export default async function DashboardPage() {
   if (!account.patientProfileId) redirect("/onboarding");
 
   const supabase = await createClient();
-  const centre = await loadCommandCenter(supabase, account.patientProfileId);
+  const [centre, twin] = await Promise.all([
+    loadCommandCenter(supabase, account.patientProfileId),
+    loadVitalsTwin(supabase, account.patientProfileId),
+  ]);
 
   const openEmergencies = centre.emergencies.filter((e) =>
     ["NEW", "ACKNOWLEDGED", "IN_PROGRESS"].includes(e.status),
@@ -118,6 +122,27 @@ export default async function DashboardPage() {
             than the present.
           </AlertBanner>
         )
+      )}
+
+      {/* Personal deviations sit above the score, because "this is unusual for
+          you" is a stronger statement than any composite — and it is the one
+          finding on this page that a published range could not have produced. */}
+      {twin.deviations.length > 0 && (
+        <AlertBanner
+          tone={twin.deviations[0].severity === "MARKED" ? "critical" : "notice"}
+          title="Different from your usual"
+          action={
+            <Link href="/twin/vitals" className="btn btn-secondary whitespace-nowrap">
+              See your normal
+            </Link>
+          }
+        >
+          <ul className="space-y-1">
+            {twin.deviations.slice(0, 3).map((finding) => (
+              <li key={finding.channel}>{finding.message}</li>
+            ))}
+          </ul>
+        </AlertBanner>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">

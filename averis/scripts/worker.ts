@@ -23,6 +23,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { log } from "../lib/observability/logger.ts";
 import { isRetryable, nextRunAt, onFailure } from "../lib/jobs/queue.ts";
+import { refreshTwin } from "../lib/health/twin-service.ts";
 
 const POLL_MS = Number(process.env.WORKER_POLL_MS ?? 5000);
 const BATCH = Number(process.env.WORKER_BATCH ?? 1);
@@ -169,10 +170,70 @@ async function notify(
   if (error) log.warn("notification insert failed", { jobId: job.job_id, error });
 }
 
+/**
+ * How often personal baselines are recomputed.
+ *
+ * Hourly, not per reading. A baseline learned from 30 days does not move in
+ * two seconds, and recomputing it on the ingest path would put a 20,000-row
+ * scan behind every uplink — the one code path that must stay fast, because a
+ * slow ingest is a reading that arrives late.
+ *
+ * The work itself is idempotent and writes nothing when nothing has changed,
+ * so a missed cycle costs an hour of freshness rather than correctness.
+ */
+const BASELINE_INTERVAL_MS = 60 * 60 * 1000;
+let lastBaselineSweepMs = 0;
+
+/**
+ * Recomputes baselines and trends for patients who have been monitored
+ * recently.
+ *
+ * Scoped to *active* patients on purpose: a patient with no readings this week
+ * has nothing new to learn from, and sweeping the whole table would make the
+ * job's cost a function of how many people ever used AVERIS rather than how
+ * many are being monitored now.
+ */
+async function refreshBaselines(): Promise<void> {
+  const since = new Date(Date.now() - 48 * 3600_000).toISOString();
+
+  const { data: active } = await supabase
+    .from("sensor_readings")
+    .select("patient_id")
+    .gte("recorded_at", since)
+    .limit(5000);
+
+  const patients = [...new Set((active ?? []).map((row) => row.patient_id))];
+
+  if (patients.length === 0) return;
+
+  let baselines = 0;
+  let events = 0;
+
+  for (const patientId of patients) {
+    try {
+      const result = await refreshTwin(supabase as never, patientId);
+      if (result.baselineWritten) baselines += 1;
+      events += result.eventsWritten;
+    } catch (error) {
+      // One patient's baseline failing must not stop the sweep. Logged at
+      // error because a baseline that silently stops updating is a
+      // personalisation feature that quietly becomes a fixed threshold.
+      log.error("baseline refresh failed", { patientId, error });
+    }
+  }
+
+  log.info("baseline sweep", { patients: patients.length, baselines, events });
+}
+
 async function main(): Promise<void> {
   log.info("worker started", { pollMs: POLL_MS, batch: BATCH });
 
   while (running) {
+    if (Date.now() - lastBaselineSweepMs >= BASELINE_INTERVAL_MS) {
+      lastBaselineSweepMs = Date.now();
+      await refreshBaselines();
+    }
+
     const jobs = await claim();
 
     if (jobs.length === 0) {

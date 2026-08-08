@@ -7,6 +7,10 @@ import { formatDate } from "@/lib/utils/format";
 import { recordAudit } from "@/lib/audit/audit-service";
 import { RiskPanel, type RiskPayload } from "@/app/(app)/monitoring/RiskPanel";
 import { listReports } from "@/lib/care/report-service";
+import { loadVitalsTwin } from "@/lib/health/twin-service";
+import { BaselineComparison } from "@/components/health/BaselineComparison";
+import { RiskTimeline } from "@/components/health/RiskTimeline";
+import { AlertBanner } from "@/components/ui/clinical";
 import { EmergencyActions } from "./EmergencyActions";
 import { ReportPanel } from "./ReportPanel";
 import { AssistantPanel } from "./AssistantPanel";
@@ -38,7 +42,7 @@ export default async function ClinicalPatientPage(props: {
 
   if (!profile) notFound();
 
-  const [identity, prediction, emergencies, alerts, readings, insights, reports] =
+  const [identity, prediction, emergencies, alerts, readings, insights, reports, twin] =
     await Promise.all([
     supabase.from("users").select("full_name").eq("id", profile.user_id).maybeSingle(),
     supabase
@@ -77,6 +81,7 @@ export default async function ClinicalPatientPage(props: {
       .order("created_at", { ascending: false })
       .limit(8),
     listReports(supabase, patientId),
+    loadVitalsTwin(supabase, patientId),
   ]);
 
   // Opening a chart is the auditable event. Access control decides who may
@@ -235,6 +240,70 @@ export default async function ClinicalPatientPage(props: {
           </ul>
         </Card>
       )}
+
+      {/* Above the raw trends, because "105 against a personal baseline of 72"
+          is a stronger clinical statement than any absolute number — and it is
+          the finding a published range structurally cannot produce. */}
+      {(twin.deviations.length > 0 || twin.deteriorations.length > 0) && (
+        <AlertBanner
+          tone={
+            twin.deviations.some((d) => d.severity === "MARKED") ||
+            twin.deteriorations.some((d) => d.severity === "CONCERNING")
+              ? "critical"
+              : "notice"
+          }
+          title="Unusual for this patient"
+        >
+          <ul className="space-y-1">
+            {twin.deviations.map((finding) => (
+              <li key={`dev-${finding.channel}`}>{finding.message}</li>
+            ))}
+            {twin.deteriorations.map((finding) => (
+              <li key={`det-${finding.channel}`}>{finding.message}</li>
+            ))}
+          </ul>
+        </AlertBanner>
+      )}
+
+      <Card>
+        <CardHeader
+          eyebrow="Personal baseline"
+          title="Current against this patient's own normal"
+          action={
+            twin.baseline ? (
+              <span className="mono text-[12.5px] text-muted">
+                {twin.baseline.daysCovered} days · {Math.round(twin.baseline.confidence * 100)}% confidence
+              </span>
+            ) : null
+          }
+        />
+        {twin.baseline ? (
+          <BaselineComparison
+            baseline={twin.baseline}
+            current={{
+              heartRate: latest?.heart_rate ?? null,
+              spo2: latest?.spo2 ?? null,
+              temperature: latest?.temperature ?? null,
+            }}
+          />
+        ) : (
+          <p className="px-6 py-5 text-[14px] leading-relaxed text-muted">
+            {twin.baselineUnavailable} Until then this patient is monitored against published
+            thresholds only.
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader
+          eyebrow="Progression"
+          title="How this patient got here"
+          action={
+            <span className="mono text-[12.5px] text-muted">{twin.timeline.length} entries</span>
+          }
+        />
+        <RiskTimeline entries={twin.timeline} />
+      </Card>
 
       <Card>
         <CardHeader
