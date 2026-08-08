@@ -22,6 +22,15 @@ code rather than asserted in copy — see [Safety](#safety).
 | **5** | Retrieval-augmented Q&A over the patient's own records, with source attribution |
 | **6** | Audit trail, plan limits, rate limiting, caching, background worker, CI/CD, MLOps |
 
+Then the IoT track, which turns the record into a monitoring platform:
+
+| Phase | Capability |
+|---|---|
+| **IoT 1** | Device registry, token-authenticated FastAPI ingest, sensor time-series, threshold alerts |
+| **IoT 2** | Live streaming over websockets, real-time vitals and charts, sensor simulator |
+| **IoT 3** | Health intelligence: anomaly detection, risk scoring, fall detection, explainable insights |
+| **IoT 4** | Doctors, caregivers and emergency response — see below |
+
 A patient uploads a blood report, confirms what AVERIS read from it, and then
 has a timeline, a risk estimate showing exactly which values drove it, and the
 ability to ask "what does my HbA1c mean?" — answered from that report plus a
@@ -171,16 +180,23 @@ build args because Next.js inlines them into the client bundle.
 averis/
 ├── app/
 │   ├── (app)/                dashboard · records · twin · risk ·
-│   │                         intelligence · activity
+│   │                         intelligence · monitoring · devices ·
+│   │                         clinical · care · care-team · activity
 │   ├── (auth)/               login · signup · OAuth callback
 │   └── api/                  risk endpoint · health probes
 ├── lib/
 │   ├── services/documents/   OCR · extraction · review · reconciliation
 │   ├── services/twin/        timeline · insights · overview      (pure)
+│   ├── care/                  triage · escalation · reports ·
+│   │                          assistant · voice                   (pure core)
+│   ├── iot/                   validation · alert rules · series   (pure)
 │   ├── ml/                   inference · SHAP · feature mapping  (pure)
 │   ├── rag/                  chunking · retrieval · grounded answers
 │   ├── audit/ plans/ cache/ jobs/ security/ observability/
 │   └── supabase/             browser · server · proxy clients
+├── ai_engine/                Python health intelligence engine
+├── iot-service/              FastAPI ingest, websocket hub, escalation
+├── sensor_simulator/         speaks the device wire contract
 ├── ml/                       Python training pipeline + MLflow
 ├── supabase/
 │   ├── migrations/           the source of truth for the schema
@@ -199,6 +215,13 @@ averis/
   adding a provider is a row write rather than a retrofit.
 - **Email and push notifications** are not stubbed — a channel that silently does nothing
   is worse than an absent one, because the code reads as though patients are being told.
+  Emergency notices are in-app only for the same reason.
+- **No escalation ladder.** An emergency nobody acknowledges stays open and nothing else
+  happens: no timeout, no on-call rotation, no fallback contact. The most important gap
+  in the care-team work, and the next honest piece of it.
+- **Clinician verification** is not implemented. `doctors` rows are created out of band and
+  `verified_at` is never set, so the UI says the licence is unverified rather than showing
+  a badge nobody checked.
 - **Data drift detection** has its prerequisites (model registry, inference logging) but
   no detector.
 

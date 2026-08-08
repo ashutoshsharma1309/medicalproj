@@ -83,3 +83,73 @@ through a network outage).
 MQTT and BLE are deliberately not built. The device-transport boundary is HTTP
 today; adding a broker means another producer calling the same ingest path, not
 a redesign.
+
+---
+
+## 7. Seeing the care team work
+
+Everything below needs the Phase 4 migrations applied
+(`20260808090000` through `20260808095000`, or a regenerated
+`supabase/apply-all.sql`).
+
+### Create a clinician
+
+There is no clinician sign-up flow — a `doctors` row is created out of band, on
+purpose, because self-registering as a doctor is not a thing this platform
+should let anyone do. Sign the account up normally, then:
+
+```sql
+insert into public.doctors (user_id, full_name, license_number, specialization, hospital_name)
+select id, 'Dr Meera Iyer', 'MED-99117', 'Internal medicine', 'City General'
+from public.users where email = 'doctor@example.com';
+```
+
+`verified_at` stays null and the UI says the licence is unverified. Nothing in
+AVERIS sets it, so a verification badge would be a claim nobody checked.
+
+### Grant access as the patient
+
+Sign in as the patient → **Care team**.
+
+- **Doctors** are added by exact licence number. The lookup shows the name and
+  hospital before the grant, because consenting to a string is not consent.
+- **Caregivers** are added by the email address they signed up with, at one of
+  three levels. `VIEW_ALERTS` is the default: emergencies only, no measurements.
+
+### Trigger an emergency
+
+```bash
+cd averis
+python3 sensor_simulator/simulate.py \
+  --token avd_... --device-key AVR001 --scenario hypoxia
+```
+
+A reading below the 90% SpO2 escalation threshold raises a `SEVERE_HYPOXIA`
+alert, escalates it once, and writes a notice to every active care team member
+in the same transaction.
+
+Watch it land: the clinician's **Clinical** page shows the notice within about a
+second over Postgres realtime, and re-reads every 60 seconds regardless. To
+prove the poll works, block the websocket in devtools — the notice still
+appears, just later.
+
+Repeat readings below the threshold raise **no** further emergencies while the
+first is open. That is the partial unique index, not a bug.
+
+### Respond
+
+Open the patient from the caseload → acknowledge → start response → resolve
+with a note. The database refuses a resolution with nobody named, so
+"resolved by nobody" is not a state the workflow can reach.
+
+Dismissing the notification does not close the emergency. They are different
+claims and are deliberately not wired together.
+
+### Summaries and the assistant
+
+Both work with no `GROQ_API_KEY` configured — the deterministic narration is
+the fallback, and it says which one you are reading. To check the guardrail,
+run without a key and confirm the summary still reports real numbers.
+
+Voice needs a Chromium-based browser; Firefox has no Web Speech API and the
+button is not rendered at all rather than rendered dead.

@@ -150,3 +150,131 @@ Stated so the boundaries are explicit rather than discovered later:
   predictions — a predicted alert nobody can explain is worse than none.
 - No doctor or caregiver UI. The roles exist in the enum; only patient
   functionality is built.
+
+---
+
+## 7. Phase 4 — the care team
+
+Phase 1 through 3 built a monitoring system with one user in it. This phase is
+the first time one person reads another person's health record, which makes it
+the highest-risk change in the project and the one with the least visible
+failure mode: a doctor browsing an unassigned chart sees a perfectly normal
+page.
+
+### The two decisions that make cross-patient access safe
+
+**Additive policies.** Postgres ORs permissive policies together, so a new
+"doctors read assigned patients" policy sits beside the untouched "patients
+read their own" policy. The consequence is what matters — the care-team
+migration *cannot* narrow patient self-access, because it does not modify those
+policies at all. The only remaining failure mode is a doctor policy that is too
+broad: one thing to get right instead of sixty-six.
+
+**One helper owns the rule.** `private.can_access_patient()` is the single
+place the question "may this user see this patient?" is answered. Every new
+policy calls it; none reimplement it. The revocation check therefore exists
+once rather than in every predicate that could forget it.
+
+The one policy that broke this rule broke the feature. `users` was given an
+inline `exists` over `patient_profiles` instead of a helper — and a subquery
+inside a policy is subject to the referenced table's RLS for the querying user.
+A caregiver holding `VIEW_ALERTS` deliberately cannot read `patient_profiles`,
+so they could see an emergency and not the name of the person it was about.
+Fixed in `20260808094500` with `private.is_care_subject()` and
+`public.care_patient_directory()`.
+
+### Three grants, not one role
+
+| Grant | Sees |
+|---|---|
+| Doctor (`ACTIVE` assignment) | Everything clinical: vitals, alerts, risk, records, timeline |
+| Caregiver `FULL` | The same, minus documents and the patient's questions to AVERIS |
+| Caregiver `VIEW_VITALS` | Alerts, emergencies and measurements |
+| Caregiver `VIEW_ALERTS` | Alerts and emergencies only — not a single measurement |
+
+`ai_conversations`, `audit_logs`, `notifications` and `subscriptions` are
+extended to **nobody**. A patient's questions are theirs; the audit trail is the
+subject's own and would otherwise become a surveillance channel.
+
+### Escalation: alert → emergency → person
+
+An alert says a measurement crossed a threshold. An emergency says a human has
+to respond, and it stays in a queue until one does. `lib/care/escalation.ts`
+owns the distance between those claims, with `iot-service/app/escalation.py` as
+the copy that runs on the ingest path.
+
+Rules, not a model — an escalation wakes someone up, and the person woken
+deserves to know what tripped it. The AI engine may still raise one, because a
+slow decline in which every reading sits inside the normal band is the one
+thing thresholds structurally cannot see, but only when risk is critical *and*
+rising. A critical temperature deliberately does not escalate: it is a real
+finding and not a minutes-matter event, and diluting the queue would not
+improve the fever.
+
+**Raising and notifying are one transaction.** `private.raise_emergency()`
+inserts the event and fans out the notices together. Split them and the failure
+is silent: the event lands, the fan-out fails, and a clinician's queue shows an
+emergency nobody was told about. Nothing looks broken. The patient waits.
+
+Deduplication is a partial unique index — one open event per patient per type.
+A device below the SpO2 threshold at 0.5 Hz would otherwise raise one every two
+seconds, and 300 unanswered emergencies is a queue nobody can triage at the
+moment it matters. The function returns `NULL` for a suppressed escalation so
+the caller stops rather than retrying into a constraint violation.
+
+### Delivery
+
+`care_notifications` is addressed to a **user**, not a patient — reusing the
+patient-scoped `notifications` table would have put a doctor's inbox under the
+patient's row, where the patient's own policy hands it back to them. Notices
+link to `/clinical/:id` or `/care/:id` depending on the recipient's role,
+because a caregiver sent to a doctor's route follows a link into a 404 during
+an emergency.
+
+The inbox has two delivery paths on purpose: a Postgres realtime subscription
+for the normal case, and a 60-second re-read regardless. A websocket can die
+quietly — closed lid, proxy timeout, sleeping tab — and a notification system
+whose failure mode is silence is indistinguishable from "no emergencies". The
+pushed payload is ignored and the page re-reads through RLS; trusting the row on
+the channel would mean trusting the channel to have filtered another
+clinician's patient out of it.
+
+### Generative features, and where the line is
+
+Two: patient summaries and the assistant. Both follow the rule the rest of
+AVERIS follows — **the numbers are computed, the model only phrases them.**
+
+`lib/care/report.ts` assembles the arithmetic. A model asked whether oxygen
+saturation fell over 24 hours will produce a confident direction from nothing;
+handed a decline it did not compute, it cannot invent one. Drift is measured
+first-fifth to last-fifth rather than first-to-last, so two readings taken
+during a cough and during sleep do not become a trend, and under ten readings no
+direction is reported at all.
+
+The assistant classifies a question into the small set of things monitoring data
+can answer, and refuses diagnosis, prescription and prognosis requests **before
+a model is called**. A refusal that depends on the model honouring its system
+prompt can be argued out of, and "should I stop my beta blocker" is exactly the
+question someone will keep rephrasing until something answers.
+
+Voice is browser-only. Recognition runs through the Web Speech API and AVERIS
+receives the transcript, never the audio: a health platform that streams a
+microphone to a server has acquired a recording of a patient's home. Commands
+("show critical patients") navigate rather than asking, and a misheard
+utterance says so instead of being forwarded — a fluent answer to a question
+nobody asked is worse than admitting the miss.
+
+### What Phase 4 does not do
+
+- **No email, SMS or push.** In-app only. A channel that silently does nothing
+  is worse than an absent one, and an emergency notification that quietly fails
+  is the worst version of that.
+- **No clinician onboarding.** `doctors` rows are created out of band and
+  `verified_at` is never set by anything; the UI says so rather than implying a
+  verification that has not happened.
+- **No admin console.** The ADMIN role exists in the enum and nothing grants it
+  anything.
+- **No escalation ladder.** If nobody acknowledges an emergency, it stays open
+  and nothing else happens — no timeout, no on-call rotation, no fallback
+  contact. That is the next honest piece of work, and pretending otherwise
+  would be the dangerous kind of gap.
