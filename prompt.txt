@@ -1,0 +1,668 @@
+You are a Senior Product Engineer, Healthcare UX Designer, SIH Hackathon Winner, and MedTech Startup CTO with 10+ years of experience building award-winning healthcare technology products.
+
+You are continuing development of:
+
+# AVERIS AI
+
+AI-Powered IoT Healthcare Monitoring and Early Risk Prediction System
+
+
+==================================================
+CURRENT PROJECT STATUS
+==================================================
+
+Completed:
+
+✓ IoT-ready architecture
+
+✓ Patient management
+
+✓ Real-time monitoring system
+
+✓ AI health intelligence
+
+✓ Risk prediction
+
+✓ Doctor dashboard
+
+✓ Emergency alerts
+
+✓ Hardware integration preparation
+
+✓ Automated testing and documentation
+
+
+Now implement:
+
+# PHASE 6: SIH PRODUCT POLISH, UX EXPERIENCE AND DEMO READINESS
+
+
+==================================================
+PHASE OBJECTIVE
+==================================================
+
+Transform AVERIS AI from a technically working project into a professional MedTech product suitable for:
+
+- Smart India Hackathon 2026
+- Investor presentation
+- Resume portfolio
+- Technical evaluation
+
+
+The objective:
+
+Create a product experience that immediately communicates:
+
+"AVERIS is a serious healthcare innovation platform."
+
+
+==================================================
+1. COMPLETE DESIGN SYSTEM
+==================================================
+
+Create a consistent AVERIS design language.
+
+
+Define:
+
+
+Colors:
+
+Healthcare-focused palette
+
+
+Typography:
+
+Professional medical SaaS style
+
+
+Components:
+
+- Cards
+- Buttons
+- Alerts
+- Charts
+- Tables
+- Modals
+
+
+Create reusable components.
+
+
+Avoid:
+
+
+- Generic AI dashboard appearance
+
+- Neon colors
+
+- Cryptocurrency style dashboards
+
+- Overloaded animations
+
+
+
+Design inspiration:
+
+- Hospital monitoring systems
+- Enterprise healthcare software
+- Premium medical SaaS products
+
+
+
+==================================================
+2. REDESIGN PATIENT DASHBOARD
+==================================================
+
+
+Create:
+
+
+# Patient Health Command Center
+
+
+Sections:
+
+
+## Current Health Status
+
+
+Display:
+
+
+Overall Health Score
+
+
+Example:
+
+
+82/100
+
+
+Status:
+
+Stable
+
+
+
+## Live Vitals
+
+
+Show:
+
+
+Heart Rate
+
+SpO2
+
+Temperature
+
+Movement
+
+
+
+## AI Health Insights
+
+
+Example:
+
+
+"Your vitals have remained stable over the last 6 hours."
+
+
+
+## Recent Alerts
+
+
+Show:
+
+- Alert history
+- Severity
+- Resolution status
+
+
+
+==================================================
+3. REDESIGN DOCTOR DASHBOARD
+==================================================
+
+
+Create:
+
+
+# Clinical Monitoring Center
+
+
+The first screen should answer:
+
+
+"Which patient needs attention right now?"
+
+
+Features:
+
+
+Patient priority list:
+
+
+Example:
+
+
+Patient:
+
+Rahul Sharma
+
+
+Risk:
+
+CRITICAL
+
+
+
+Patient:
+
+Anita Singh
+
+
+Risk:
+
+LOW
+
+
+
+Sort by:
+
+
+- Risk score
+- Active alerts
+- Latest abnormal event
+
+
+
+==================================================
+4. CREATE MEDICAL VISUALIZATION SYSTEM
+==================================================
+
+
+Improve data visualization.
+
+
+Add:
+
+
+Heart rate charts
+
+
+SpO2 trend graphs
+
+
+Temperature trends
+
+
+Risk timeline
+
+
+
+Charts should show:
+
+
+- Normal zones
+- Warning zones
+- Critical zones
+
+
+Make information understandable for doctors.
+
+
+
+==================================================
+5. CREATE AI EXPLANATION EXPERIENCE
+==================================================
+
+
+AI predictions should never appear as a black box.
+
+
+Create:
+
+
+# Why did AVERIS detect this?
+
+
+Example:
+
+
+Risk Score:
+
+78%
+
+
+Contributing factors:
+
+
+SpO2 decreasing:
+
++35%
+
+
+Heart rate increasing:
+
++30%
+
+
+Movement abnormality:
+
++15%
+
+
+
+Use visual explanations.
+
+
+
+==================================================
+6. CREATE EMERGENCY SIMULATION MODE
+==================================================
+
+
+Create a dedicated demo mode.
+
+
+Purpose:
+
+Allow judges to experience the complete workflow.
+
+
+Button:
+
+
+"Simulate Emergency"
+
+
+When clicked:
+
+
+Generate:
+
+
+Heart Rate:
+
+150 BPM
+
+
+SpO2:
+
+87%
+
+
+Movement:
+
+Fall detected
+
+
+
+System should show:
+
+
+1. Device detects abnormality
+
+2. AI analyzes pattern
+
+3. Risk score increases
+
+4. Alert generated
+
+5. Doctor dashboard receives alert
+
+
+
+==================================================
+7. CREATE SIH DEMO FLOW
+==================================================
+
+
+Create a guided demo experience.
+
+
+Demo sequence:
+
+
+STEP 1:
+
+Patient connects wearable
+
+
+
+STEP 2:
+
+Live vitals appear
+
+
+
+STEP 3:
+
+AI analyzes health pattern
+
+
+
+STEP 4:
+
+Abnormal condition simulated
+
+
+
+STEP 5:
+
+Doctor receives emergency alert
+
+
+
+STEP 6:
+
+AI explains the reason
+
+
+
+The demo should complete within 5 minutes.
+
+
+
+==================================================
+8. LANDING PAGE IMPROVEMENT
+==================================================
+
+
+Create a professional product website.
+
+
+Sections:
+
+
+Hero:
+
+
+"AI-powered early risk prediction for remote healthcare monitoring."
+
+
+Problem:
+
+Healthcare monitoring gaps
+
+
+
+Solution:
+
+AVERIS wearable + AI platform
+
+
+
+Technology:
+
+- IoT
+- AI
+- Cloud
+- Machine Learning
+
+
+
+Impact:
+
+
+- Elderly care
+- Rural healthcare
+- Remote monitoring
+
+
+
+Architecture overview
+
+
+
+Demo section
+
+
+
+==================================================
+9. ADD PRODUCT METRICS SECTION
+==================================================
+
+
+Create measurable impact indicators.
+
+
+Examples:
+
+
+Real-time monitoring:
+
+24/7
+
+
+AI analysis:
+
+Instant
+
+
+Data processing:
+
+Real-time
+
+
+
+Do not invent fake medical accuracy metrics.
+
+
+
+==================================================
+10. PERFORMANCE OPTIMIZATION
+==================================================
+
+
+Optimize:
+
+
+Frontend:
+
+
+- Loading speed
+- Bundle size
+- Component rendering
+
+
+Backend:
+
+
+- API response time
+- Database queries
+
+
+Realtime:
+
+
+- WebSocket stability
+
+
+
+==================================================
+11. DEPLOYMENT READINESS
+==================================================
+
+
+Prepare production deployment.
+
+
+Verify:
+
+
+Frontend:
+
+Production build
+
+
+Backend:
+
+Deployment configuration
+
+
+Database:
+
+Environment variables
+
+
+Cloud:
+
+
+GCP-ready setup
+
+
+
+Create:
+
+
+DEPLOYMENT_GUIDE.md
+
+
+
+==================================================
+12. FINAL SECURITY CHECK
+==================================================
+
+
+Review:
+
+
+- Authentication
+- Authorization
+- Patient privacy
+- API exposure
+- Secrets
+
+
+Fix automatically possible issues.
+
+
+
+==================================================
+13. FINAL TESTING
+==================================================
+
+
+Run:
+
+
+Frontend tests
+
+
+Backend tests
+
+
+Integration tests
+
+
+Demo workflow tests
+
+
+
+Create:
+
+
+FINAL_TEST_REPORT.md
+
+
+
+==================================================
+FINAL PHASE SUCCESS CRITERIA
+==================================================
+
+
+At the end of this phase:
+
+
+AVERIS AI should have:
+
+
+✓ Premium healthcare UI
+
+✓ Professional patient dashboard
+
+✓ Professional doctor dashboard
+
+✓ AI explanation interface
+
+✓ Emergency demo workflow
+
+✓ SIH-ready presentation experience
+
+✓ Production deployment readiness
+
+
+The final product should feel like:
+
+
+"A healthcare startup prototype ready for evaluation."
+
+
+Not:
+
+
+"A student project with connected sensors."
