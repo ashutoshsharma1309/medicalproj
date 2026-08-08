@@ -48,7 +48,12 @@
 // Use https:// in anything but a bench setup. Over http the token is on the
 // wire in plaintext, and a token on the wire is a token anyone on the network
 // can use to write into somebody's medical record.
-#define AVERIS_TLS_INSECURE 1  // 1 = skip certificate validation (bench only)
+//
+// Defaults to 0 — certificates are validated. It was 1, which is the wrong
+// default for a file people copy: an example config that ships with validation
+// disabled is one that reaches a ward with validation disabled, and nobody
+// reviews the line they did not have to change.
+#define AVERIS_TLS_INSECURE 0  // set to 1 only on a bench with a self-signed cert
 
 // ── Timing ─────────────────────────────────────────────────────────────────
 // How often a reading is sent. The sensors are sampled far more often than
@@ -90,4 +95,7 @@
 
 // Prints every reading to serial. Never leave this on in something a patient
 // wears: it is a vital-sign stream out of a debug port.
-#define AVERIS_SERIAL_DEBUG 1
+//
+// Also defaults to 0 now, for the same reason as TLS above. Turn it on while
+// bringing a band up, and turn it off before it goes on a wrist.
+#define AVERIS_SERIAL_DEBUG 0
