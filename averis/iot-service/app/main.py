@@ -2,6 +2,7 @@
 
     POST /api/device/upload   an ESP32 (or the simulator) reports a reading
     POST /api/device/data     the same thing, under its original name
+    POST /api/device/batch    a band catching up after an outage
     POST /api/device/hello    a band announces itself and collects server time
     WS   /api/live            a dashboard subscribes to its own patient's stream
     GET  /api/health/live     is the process up
@@ -33,6 +34,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings, load_settings
 from .hub import ConnectionHub
+from .batch import process_batch
 from .telemetry import parse_telemetry
 from .services.intelligence_service import IntelligenceService
 from .services.sensor_processing_service import (
@@ -179,6 +181,72 @@ async def ingest(request: Request, authorization: str | None = Header(default=No
         },
         status_code=201,
     )
+
+
+@app.post("/api/device/batch")
+async def ingest_batch(request: Request, authorization: str | None = Header(default=None)):
+    """A band delivering what it buffered while offline.
+
+    Rural connectivity is not a link that is up or down — it is a few minutes
+    an hour. This endpoint exists so those minutes are spent on one TLS
+    handshake instead of ninety, because on a battery the radio is the
+    expensive part and setting up a connection costs more than the readings it
+    carries.
+
+    Every reading still goes through the ordinary pipeline: same validator,
+    same alert rules, same escalation. A batch endpoint that trusted its input
+    because it arrived in bulk would be the easiest way into the system.
+
+    Rate limited separately and more generously than the single-reading path —
+    a band catching up on two hours legitimately sends a burst, and applying
+    the per-reading limit would throttle exactly the recovery this exists for.
+    """
+    settings: Settings = _state["settings"]
+    processing: SensorProcessingService = _state["processing"]
+    store: Store = _state["store"]
+
+    token = _bearer(authorization)
+
+    if token:
+        device = await store.resolve_device(token)
+        if device and not _within_rate_limit(
+            f"batch:{device.device_id}", 20, time.monotonic()
+        ):
+            return JSONResponse(
+                {"error": "rate_limited"},
+                status_code=429,
+                headers={"Retry-After": "60"},
+            )
+
+    try:
+        body = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JSONResponse({"error": "invalid_json"}, status_code=400)
+
+    outcome, error = await process_batch(processing, token, body)
+
+    if error is not None:
+        payload: dict[str, Any] = {"error": error.code}
+        if error.details:
+            payload["details"] = error.details
+        return JSONResponse(payload, status_code=error.status)
+
+    assert outcome is not None
+
+    logger.info(
+        "batch accepted=%d rejected=%d alerts=%d",
+        outcome.accepted,
+        outcome.rejected,
+        outcome.alerts_raised,
+    )
+
+    # 207 when some readings were rejected: the request succeeded and the
+    # result is mixed, which is exactly what a partial batch is. A flat 201
+    # would tell a band everything landed when some of it did not, and the band
+    # would clear a buffer it should have kept.
+    status = 207 if outcome.rejected else 201
+
+    return JSONResponse({**outcome.to_dict(), "server_time": int(time.time())}, status_code=status)
 
 
 @app.post("/api/device/hello")

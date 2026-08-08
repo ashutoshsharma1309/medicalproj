@@ -16,6 +16,19 @@
  * would be easier and is wrong: after an hour offline, the newest readings are
  * the ones describing the patient now.
  *
+ * ── Rural connectivity: two things RAM buffering does not solve ────────────
+ *
+ * **A power cycle.** RAM is gone at reset, and a band on a village supply gets
+ * reset. Readings that survived four hours of no signal should not be lost to
+ * a brownout in the fifth, so the buffer is mirrored into NVS — the ESP32's
+ * wear-levelled flash partition, which survives deep sleep and reboot.
+ *
+ * **Delivery cost.** Ninety separate uplinks pay for ninety TLS handshakes. On
+ * a battery the radio is the expensive part and a handshake costs more than
+ * the readings it carries, so a reconnecting band posts the whole buffer to
+ * `/api/device/batch` in one request. That is the entire reason the batch
+ * endpoint exists — not payload size, connections.
+ *
  * ── Backoff, and why it is capped low ──────────────────────────────────────
  *
  * Exponential up to 30 seconds, not the usual several minutes. A band is not a
@@ -75,12 +88,24 @@ class Uplinker {
   /** Stores a reading for later. Drops the oldest when full. */
   void buffer(const Uplink& reading, const char* isoTimestamp);
 
+  /**
+   * Mirrors the buffer into flash, and reads it back after a reset.
+   *
+   * Called on a cadence rather than per reading: NVS is wear-levelled but not
+   * free, and writing 90 entries every two seconds would burn the partition
+   * in weeks. Persisting every thirty seconds costs at most fifteen readings
+   * to a brownout and keeps the flash alive for years.
+   */
+  void persist();
+  void restore();
+
   uint16_t bufferedCount() const { return bufferCount_; }
   bool isLockedOut() const { return lockedOut_; }
   uint32_t backoffMs() const { return backoffMs_; }
 
  private:
   UplinkResult post(const char* body, uint32_t* latencyMsOut);
+  UplinkResult postBatch(uint16_t count, uint32_t* latencyMsOut);
   UplinkResult flushBuffer();
 
   // 90 readings at the 2s cadence: three minutes of history, ~18 KB of RAM.
@@ -96,6 +121,7 @@ class Uplinker {
 
   uint32_t backoffMs_ = 0;
   uint32_t nextAttemptMs_ = 0;
+  uint32_t lastPersistMs_ = 0;
   bool lockedOut_ = false;
 };
 

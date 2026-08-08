@@ -4,12 +4,25 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <Preferences.h>
 
 namespace averis {
 
 namespace {
 constexpr uint32_t kBackoffStartMs = 1000;
 constexpr uint32_t kBackoffCeilingMs = 30000;
+
+/** NVS namespace for the offline buffer. */
+constexpr char kBufferNamespace[] = "averis_buf";
+
+/**
+ * How often the RAM buffer is mirrored to flash.
+ *
+ * NVS is wear-levelled but not free. Writing 90 entries every two seconds
+ * would burn the partition in weeks; every thirty seconds costs at most
+ * fifteen readings to a brownout and keeps the flash alive for years.
+ */
+constexpr uint32_t kPersistIntervalMs = 30000;
 
 /** Extracts one integer field from a small JSON response, without a parser. */
 long jsonNumber(const String& body, const char* key, long fallback) {
@@ -134,9 +147,87 @@ void Uplinker::buffer(const Uplink& reading, const char* isoTimestamp) {
     // readings are the ones describing the patient now.
     bufferHead_ = (bufferHead_ + 1) % kBufferSlots;
   }
+
+  // Rate-limited inside persist(), so calling it per reading is safe and the
+  // cadence lives in one place.
+  persist();
+}
+
+/**
+ * Posts the whole buffer as one request.
+ *
+ * The rural path. Ninety separate uplinks pay for ninety TLS handshakes, and
+ * on a battery a handshake costs more than the readings it carries — so a band
+ * that has been offline for an hour spends its few minutes of signal on one
+ * connection rather than on setting up ninety.
+ *
+ * The bodies are already encoded JSON objects, so the batch is assembled by
+ * joining them with commas inside brackets. Re-encoding would need every
+ * reading held as a struct as well as a string, which is RAM this device does
+ * not have to spare.
+ */
+UplinkResult Uplinker::postBatch(uint16_t count, uint32_t* latencyMsOut) {
+  if (count == 0) return UplinkResult::kAccepted;
+
+  HTTPClient http;
+  http.setTimeout(20000);  // A batch is a bigger request on a worse link.
+  http.begin(AVERIS_BATCH_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " AVERIS_DEVICE_TOKEN);
+
+  // Streamed rather than assembled in a buffer: 90 × 320 bytes is 28 KB, and
+  // holding a second copy of the buffer to send the first would be the
+  // allocation that fails at 3am.
+  String payload;
+  payload.reserve(static_cast<size_t>(count) * 200 + 16);
+  payload += '[';
+  for (uint16_t i = 0; i < count; i++) {
+    if (i > 0) payload += ',';
+    payload += bufferBodies_[(bufferHead_ + i) % kBufferSlots];
+  }
+  payload += ']';
+
+  const uint32_t startedMs = millis();
+  const int status = http.POST(payload);
+  if (latencyMsOut) *latencyMsOut = millis() - startedMs;
+
+  http.end();
+
+  // 207 means some readings were rejected and the rest were stored. The batch
+  // is still done — retrying would resend the accepted ones as duplicates.
+  if (status == 201 || status == 200 || status == 207) return UplinkResult::kAccepted;
+  if (status == 401 || status == 403) return UplinkResult::kUnauthorised;
+  if (status == 413) return UplinkResult::kRejected;  // too large; fall back
+  if (status >= 400 && status < 500 && status != 429) return UplinkResult::kRejected;
+
+  return UplinkResult::kRetryLater;
 }
 
 UplinkResult Uplinker::flushBuffer() {
+  // One request for the whole buffer when there is enough to be worth it. The
+  // threshold exists because a batch of two is a batch-shaped single reading
+  // with extra parsing on both ends.
+  if (bufferCount_ >= 5) {
+    const UplinkResult batched = postBatch(bufferCount_, nullptr);
+
+    if (batched == UplinkResult::kAccepted) {
+      bufferHead_ = (bufferHead_ + bufferCount_) % kBufferSlots;
+      bufferCount_ = 0;
+      persist();
+      return UplinkResult::kAccepted;
+    }
+
+    if (batched == UplinkResult::kUnauthorised) {
+      lockedOut_ = true;
+      return batched;
+    }
+
+    if (batched == UplinkResult::kRetryLater) return batched;
+
+    // Rejected as a batch — fall through and send them one at a time, so a
+    // single malformed body cannot cost the rest.
+  }
+
   while (bufferCount_ > 0) {
     const UplinkResult result = post(bufferBodies_[bufferHead_], nullptr);
 
@@ -158,7 +249,64 @@ UplinkResult Uplinker::flushBuffer() {
     delay(20);
   }
 
+  persist();
   return UplinkResult::kAccepted;
+}
+
+/**
+ * Mirrors the buffer into flash.
+ *
+ * Rate-limited internally so callers can invoke it freely — the alternative is
+ * every call site remembering the cadence, and the one that forgets is the one
+ * that wears out the partition.
+ */
+void Uplinker::persist() {
+  const uint32_t nowMs = millis();
+  if (lastPersistMs_ != 0 && nowMs - lastPersistMs_ < kPersistIntervalMs && bufferCount_ > 0) {
+    return;
+  }
+  lastPersistMs_ = nowMs;
+
+  Preferences prefs;
+  if (!prefs.begin(kBufferNamespace, false)) return;
+
+  prefs.putUShort("count", bufferCount_);
+
+  char key[8];
+  for (uint16_t i = 0; i < bufferCount_; i++) {
+    snprintf(key, sizeof(key), "r%u", i);
+    prefs.putString(key, bufferBodies_[(bufferHead_ + i) % kBufferSlots]);
+  }
+
+  prefs.end();
+}
+
+/**
+ * Reads the buffer back after a reset.
+ *
+ * Called once at boot. A band that lost power with four hours of readings
+ * buffered comes back with them — which is the difference between a gap in a
+ * chart and a gap in a patient's record.
+ */
+void Uplinker::restore() {
+  Preferences prefs;
+  if (!prefs.begin(kBufferNamespace, true)) return;
+
+  const uint16_t stored = prefs.getUShort("count", 0);
+  const uint16_t count = stored > kBufferSlots ? kBufferSlots : stored;
+
+  char key[8];
+  for (uint16_t i = 0; i < count; i++) {
+    snprintf(key, sizeof(key), "r%u", i);
+    // Straight into the slot: the buffer is empty at boot, so head is 0 and
+    // the order on flash is the order they were measured.
+    prefs.getString(key, bufferBodies_[i], kBodyBytes);
+  }
+
+  prefs.end();
+
+  bufferHead_ = 0;
+  bufferCount_ = count;
 }
 
 UplinkResult Uplinker::send(const Uplink& reading) {

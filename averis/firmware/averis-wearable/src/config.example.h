@@ -45,6 +45,10 @@
 #define AVERIS_INGEST_URL "http://192.168.1.50:8000/api/device/upload"
 #define AVERIS_HELLO_URL "http://192.168.1.50:8000/api/device/hello"
 
+// Where a band delivers what it buffered while offline — one request instead
+// of ninety. On a rural link the connection costs more than the readings.
+#define AVERIS_BATCH_URL "http://192.168.1.50:8000/api/device/batch"
+
 // Use https:// in anything but a bench setup. Over http the token is on the
 // wire in plaintext, and a token on the wire is a token anyone on the network
 // can use to write into somebody's medical record.

@@ -160,6 +160,21 @@ export type AuditResource =
   | "DOCUMENT" | "PROFILE" | "PREDICTION" | "CONVERSATION" | "TWIN" | "SESSION"
   | "EMERGENCY" | "REPORT";
 
+export type TrendMetric = "HEART_RATE" | "SPO2" | "TEMPERATURE";
+
+export type TrendDirectionEnum = "RISING" | "FALLING" | "STEADY";
+
+export type RiskEventType =
+  | "BASELINE_ESTABLISHED"
+  | "BASELINE_UPDATED"
+  | "PERSONAL_DEVIATION"
+  | "TREND_DETECTED"
+  | "DETERIORATION_PREDICTED"
+  | "THRESHOLD_ALERT"
+  | "EMERGENCY_RAISED"
+  | "EMERGENCY_RESOLVED"
+  | "RECOVERY";
+
 export type DeviceEventKind =
   | "BOOT"
   | "SENSOR_FAULT"
@@ -693,6 +708,118 @@ export type Database = {
         Relationships: [];
       };
 
+      patient_baselines: {
+        Row: {
+          id: string;
+          patient_id: string;
+          avg_heart_rate: number | null;
+          avg_spo2: number | null;
+          avg_temperature: number | null;
+          heart_rate_low: number | null;
+          heart_rate_high: number | null;
+          spo2_low: number | null;
+          spo2_high: number | null;
+          temperature_low: number | null;
+          temperature_high: number | null;
+          heart_rate_iqr: number | null;
+          spo2_iqr: number | null;
+          temperature_iqr: number | null;
+          window_start: string;
+          window_end: string;
+          days_covered: number;
+          sample_count: number;
+          excluded_samples: number;
+          confidence: number;
+          calculated_at: string;
+        };
+        // Written by the worker. A baseline a browser could write is a
+        // baseline a browser could use to change what counts as normal for
+        // someone.
+        Insert: {
+          patient_id: string;
+          avg_heart_rate?: number | null;
+          avg_spo2?: number | null;
+          avg_temperature?: number | null;
+          heart_rate_low?: number | null;
+          heart_rate_high?: number | null;
+          spo2_low?: number | null;
+          spo2_high?: number | null;
+          temperature_low?: number | null;
+          temperature_high?: number | null;
+          heart_rate_iqr?: number | null;
+          spo2_iqr?: number | null;
+          temperature_iqr?: number | null;
+          window_start: string;
+          window_end: string;
+          days_covered: number;
+          sample_count: number;
+          excluded_samples?: number;
+          confidence: number;
+        };
+        // Append-only: a superseded baseline is what the system believed at the
+        // time, and explanations reference it.
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      health_trends: {
+        Row: {
+          id: string;
+          patient_id: string;
+          metric: TrendMetric;
+          direction: TrendDirectionEnum;
+          trend_value: number;
+          total_change: number | null;
+          fit: number | null;
+          days_observed: number;
+          concerning: boolean;
+          window_start: string;
+          window_end: string;
+          created_at: string;
+        };
+        Insert: {
+          patient_id: string;
+          metric: TrendMetric;
+          direction: TrendDirectionEnum;
+          trend_value: number;
+          total_change?: number | null;
+          fit?: number | null;
+          days_observed: number;
+          concerning?: boolean;
+          window_start: string;
+          window_end: string;
+        };
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
+      risk_events: {
+        Row: {
+          id: string;
+          patient_id: string;
+          risk_type: RiskEventType;
+          severity: AlertSeverityEnum;
+          explanation: string;
+          evidence: unknown;
+          baseline_id: string | null;
+          trend_id: string | null;
+          occurred_at: string;
+          created_at: string;
+        };
+        Insert: {
+          patient_id: string;
+          risk_type: RiskEventType;
+          severity?: AlertSeverityEnum;
+          explanation: string;
+          evidence?: unknown;
+          baseline_id?: string | null;
+          trend_id?: string | null;
+          occurred_at?: string;
+        };
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
       device_events: {
         Row: {
           id: number;
@@ -1116,6 +1243,9 @@ export type Database = {
       audit_resource: AuditResource;
       notification_kind: NotificationKind;
       device_event_kind: DeviceEventKind;
+      trend_metric: TrendMetric;
+      trend_direction: TrendDirectionEnum;
+      risk_event_type: RiskEventType;
       job_status: JobStatus;
       subscription_plan: SubscriptionPlan;
       subscription_state: SubscriptionState;

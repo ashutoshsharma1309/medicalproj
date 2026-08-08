@@ -143,6 +143,14 @@ void setup() {
 
   gBle.begin(AVERIS_DEVICE_KEY);
 
+  // Anything buffered before the last reset. A band that lost power with four
+  // hours of readings held comes back with them — the difference between a gap
+  // in a chart and a gap in a patient's record.
+  gUplink.restore();
+  if (gUplink.bufferedCount() > 0) {
+    gDisplay.showBootMessage("Recovered", "readings to send");
+  }
+
   gDisplay.showBootMessage("WiFi", AVERIS_WIFI_SSID);
   if (gUplink.connectWifi()) {
     const HelloResponse hello = gUplink.hello();
