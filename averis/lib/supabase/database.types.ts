@@ -708,6 +708,90 @@ export type Database = {
         Relationships: [];
       };
 
+      calibration_sessions: {
+        Row: {
+          id: string;
+          device_id: string;
+          patient_id: string;
+          channel: string;
+          reference_instrument: string;
+          reference_accuracy: string | null;
+          conditions: string | null;
+          pair_count: number;
+          bias: number | null;
+          sd: number | null;
+          loa_lower: number | null;
+          loa_upper: number | null;
+          rms: number | null;
+          max_abs_difference: number | null;
+          proportional_bias_slope: number | null;
+          // Null means "not enough pairs to judge", which is a third state
+          // distinct from pass and fail. Typed nullable so a caller has to
+          // handle it rather than treating absence as failure.
+          meets_bench_bounds: boolean | null;
+          notes: string | null;
+          performed_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          device_id: string;
+          patient_id: string;
+          channel: string;
+          reference_instrument: string;
+          reference_accuracy?: string | null;
+          conditions?: string | null;
+          pair_count?: number;
+          bias?: number | null;
+          sd?: number | null;
+          loa_lower?: number | null;
+          loa_upper?: number | null;
+          rms?: number | null;
+          max_abs_difference?: number | null;
+          proportional_bias_slope?: number | null;
+          meets_bench_bounds?: boolean | null;
+          notes?: string | null;
+          performed_at?: string;
+        };
+        // No Delete. A calibration record is evidence about a device, and the
+        // device that reads badly is the one somebody wants to delete.
+        Update: {
+          conditions?: string | null;
+          pair_count?: number;
+          bias?: number | null;
+          sd?: number | null;
+          loa_lower?: number | null;
+          loa_upper?: number | null;
+          rms?: number | null;
+          max_abs_difference?: number | null;
+          proportional_bias_slope?: number | null;
+          meets_bench_bounds?: boolean | null;
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
+
+      calibration_pairs: {
+        Row: {
+          id: number;
+          session_id: string;
+          device_value: number;
+          reference_value: number;
+          conditions: string | null;
+          recorded_at: string;
+        };
+        Insert: {
+          session_id: string;
+          device_value: number;
+          reference_value: number;
+          conditions?: string | null;
+          recorded_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+
       patient_baselines: {
         Row: {
           id: string;

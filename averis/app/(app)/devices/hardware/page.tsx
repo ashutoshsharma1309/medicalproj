@@ -191,12 +191,18 @@ export default async function HardwarePage() {
                 </ul>
               </div>
 
-              <div className="border-t border-rule px-6 py-3.5">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-rule px-6 py-3.5">
                 <Link
                   href={`/devices/${device.deviceKey}/diagnostics`}
                   className="text-[13.5px] text-brand hover:underline"
                 >
                   Open engineering view →
+                </Link>
+                <Link
+                  href={`/devices/${device.deviceKey}/calibration`}
+                  className="text-[13.5px] text-brand hover:underline"
+                >
+                  Sensor calibration →
                 </Link>
               </div>
             </Card>
