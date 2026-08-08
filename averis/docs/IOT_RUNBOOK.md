@@ -153,3 +153,49 @@ run without a key and confirm the summary still reports real numbers.
 
 Voice needs a Chromium-based browser; Firefox has no Web Speech API and the
 button is not rendered at all rather than rendered dead.
+
+---
+
+## 8. Running with real hardware
+
+Full wiring, pin map and bring-up: **[HARDWARE.md](HARDWARE.md)**.
+
+The short version — and the point of this section is that it is short:
+
+```bash
+cd averis/firmware/averis-wearable
+cp src/config.example.h src/config.h    # key, token, WiFi, ingest URL
+pio run -t upload
+```
+
+Nothing else changes. The band posts to `/api/device/upload`, the ingest
+service authenticates it against the same hashed token the simulator uses, and
+the readings flow through the same pipeline into the same dashboards. Sections
+1–7 above still apply verbatim; the only difference is which process is sending.
+
+### Both inputs at once
+
+A simulator and a band can run side by side against the same backend. They need
+**different device registrations** — one key and one token each — because a
+shared identity would merge two sources into one patient's chart.
+
+Register the simulator with "This is a simulator" ticked. Its readings are then
+stamped `is_simulated` on every row, and the hardware page shows the badge. A
+simulated device pointed at a registration that was not marked as one produces
+data nothing can distinguish from measurements afterwards, which is the failure
+this flag exists to prevent.
+
+### Exercising the failure paths without a soldering iron
+
+```bash
+# A sensor that has broken — raises a SENSOR_FAULT device event
+python3 sensor_simulator/simulate.py --token avd_... --device-key AVR001 \
+  --break-sensor imu
+
+# A minimal third-party device that sends no telemetry at all
+python3 sensor_simulator/simulate.py --token avd_... --device-key AVR001 \
+  --no-telemetry
+```
+
+Both should leave the readings flowing. That is the property under test: bad or
+absent telemetry never costs a measurement.
