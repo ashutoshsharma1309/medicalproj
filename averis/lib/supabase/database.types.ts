@@ -160,6 +160,17 @@ export type AuditResource =
   | "DOCUMENT" | "PROFILE" | "PREDICTION" | "CONVERSATION" | "TWIN" | "SESSION"
   | "EMERGENCY" | "REPORT";
 
+export type DeviceEventKind =
+  | "BOOT"
+  | "SENSOR_FAULT"
+  | "SENSOR_RECOVERED"
+  | "AUTH_REJECTED"
+  | "BUFFER_OVERFLOW"
+  | "LOW_BATTERY"
+  | "FIRMWARE_CHANGED"
+  | "WENT_OFFLINE"
+  | "CAME_ONLINE";
+
 export type NotificationKind =
   | "DOCUMENT_PROCESSED" | "DOCUMENT_FAILED" | "INSIGHT_GENERATED" | "PROFILE_UPDATED";
 
@@ -682,6 +693,23 @@ export type Database = {
         Relationships: [];
       };
 
+      device_events: {
+        Row: {
+          id: number;
+          device_id: string;
+          patient_id: string;
+          kind: DeviceEventKind;
+          detail: string | null;
+          metadata: unknown;
+          created_at: string;
+        };
+        // Written by the ingest service. A browser that could insert here
+        // could fabricate a band's history.
+        Insert: Record<never, never>;
+        Update: Record<never, never>;
+        Relationships: [];
+      };
+
       care_notifications: {
         Row: {
           id: string;
@@ -768,6 +796,17 @@ export type Database = {
           firmware_version: string | null;
           last_connected_at: string | null;
           last_reading_at: string | null;
+          // Phase 5 hardware telemetry.
+          is_simulated: boolean;
+          signal_strength_dbm: number | null;
+          uptime_seconds: number | null;
+          boot_count: number | null;
+          hardware_revision: string | null;
+          transport: string | null;
+          sensor_health: unknown;
+          last_latency_ms: number | null;
+          buffered_readings: number | null;
+          last_boot_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -782,6 +821,7 @@ export type Database = {
           connection_status?: ConnectionStatusEnum;
           battery_percentage?: number | null;
           firmware_version?: string | null;
+          is_simulated?: boolean;
         };
         Update: {
           device_name?: string;
@@ -791,6 +831,10 @@ export type Database = {
           connection_status?: ConnectionStatusEnum;
           battery_percentage?: number | null;
           firmware_version?: string | null;
+          // Telemetry is written by the ingest service; a patient may still
+          // reclassify their own device as simulated, which is the one
+          // hardware field a client has any business setting.
+          is_simulated?: boolean;
         };
         Relationships: [];
       };
@@ -805,6 +849,9 @@ export type Database = {
           temperature: number | null;
           movement_status: MovementStatusEnum;
           battery_percentage: number | null;
+          // Fixed at write time: a chart drawn today must not change meaning
+          // because a device was reclassified later.
+          is_simulated: boolean;
           recorded_at: string;
           received_at: string;
         };
@@ -1059,6 +1106,7 @@ export type Database = {
       audit_action: AuditAction;
       audit_resource: AuditResource;
       notification_kind: NotificationKind;
+      device_event_kind: DeviceEventKind;
       job_status: JobStatus;
       subscription_plan: SubscriptionPlan;
       subscription_state: SubscriptionState;
