@@ -79,6 +79,20 @@ export function RegisterDevice() {
           </p>
         </div>
 
+        <div className="sm:col-span-2">
+          <label className="flex items-start gap-2.5">
+            <input type="checkbox" name="isSimulated" className="mt-1" />
+            <span>
+              <span className="block text-[14px]">This is a simulator, not a real device</span>
+              <span className="mt-0.5 block text-[13px] leading-relaxed text-muted">
+                Every reading it sends is permanently marked as generated. Tick this for the
+                sensor simulator — data that cannot later be told apart from measurements is
+                worse than no data.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="flex items-end">
           <SubmitButton />
         </div>

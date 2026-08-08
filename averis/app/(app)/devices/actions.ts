@@ -44,6 +44,10 @@ export async function registerDeviceAction(
   const deviceName = String(formData.get("deviceName") ?? "").trim();
   const rawType = String(formData.get("deviceType") ?? "WEARABLE_BAND");
   const deviceKey = String(formData.get("deviceKey") ?? "").trim();
+  // Declared here and nowhere else. The flag cannot be inferred from traffic:
+  // anything that wanted to be treated as real hardware would simply say so,
+  // which is the one thing it exists to prevent.
+  const isSimulated = formData.get("isSimulated") === "on";
 
   if (deviceName.length < 1 || deviceName.length > 120) {
     return { token: null, deviceKey: null, error: "Give the device a name." };
@@ -64,6 +68,7 @@ export async function registerDeviceAction(
       deviceName,
       deviceType,
       deviceKey: deviceKey || undefined,
+      isSimulated,
     });
 
     // The device key is auditable; the token is not, and sanitizeMetadata

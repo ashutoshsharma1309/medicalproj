@@ -37,7 +37,12 @@ export default async function DevicesPage() {
           Wearables registered to your account. Each one carries its own credential, so a device
           can send readings without ever holding your sign-in details.
         </p>
-      </header>
+              <p className="mt-2 text-[14px]">
+          <Link href="/devices/hardware" className="text-brand hover:underline">
+            Hardware status →
+          </Link>
+        </p>
+</header>
 
       {active.length === 0 && (
         <Callout tone="brand" title="No devices yet">
