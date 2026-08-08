@@ -41,9 +41,9 @@ tempted.
 
 | Control | Verified by | Count |
 | --- | --- | --- |
-| Row Level Security policies | `supabase/tests/*_rls_verification.sql`, run against the **unmodified production migrations** | 254 assertions |
-| Application logic | `npm test` | 585 tests |
-| Device firmware decision logic | `firmware/averis-wearable/test/run.sh`, compiled and executed on the host | 67 checks |
+| Row Level Security policies | `supabase/tests/*_rls_verification.sql`, run against the **unmodified production migrations** | 267 assertions |
+| Application logic | `npm test` | 616 tests |
+| Device firmware decision logic | `firmware/averis-wearable/test/run.sh`, compiled and executed on the host | 91 checks |
 | Schema invariants | `supabase/tests/schema_validation.sql` | in CI |
 | Backup integrity | `scripts/restore-drill.sh --with-rls` | 227 policies and grants diffed |
 | Dependency advisories | `scripts/audit-gate.mjs` | blocks in CI |
@@ -57,7 +57,7 @@ deleted.
 
 ## 3. Findings from actually running things
 
-Six defects in the authorisation model were found by executing the migrations
+Eight defects in the authorisation model were found by executing the migrations
 and assertions rather than by reading them. They are listed because a review
 that reports only the final state hides how the final state was reached — and
 because the pattern generalises.
@@ -70,6 +70,8 @@ because the pattern generalises.
 | A caregiver could not read their patient's name, same root cause | Medium | Fixed via `private.is_care_subject()` |
 | Content Security Policy blocked the ingest origin — worked locally, would have failed in production | Medium | Fixed with `originOf()` |
 | A dump taken with `--no-privileges` restores with all 101 policies and no grants | High | Documented; drill checks it |
+| A patient could attach a calibration record to another patient's device — the policy's with-check inspects `patient_id` only, and two independent foreign keys were each satisfied alone | Medium | Fixed with a composite foreign key |
+| A `private.` helper was revoked from `PUBLIC` without being granted back, leaving a policy unable to evaluate its own predicate | Low | Fixed |
 
 The third and fourth are the same misconception and are worth internalising: **a
 policy that references another table is evaluated under the querying role's
@@ -188,6 +190,7 @@ Present, understood, not fixed.
 | 6 | **Four high dependency advisories remain.** `sharp`/libvips and `adm-zip`, neither with a fixed release. | Assessed as unreachable — no user-supplied images, no runtime-fetched archives — and argued in `scripts/audit-gate.mjs`. A *new* high advisory still blocks CI. |
 | 7 | **No cross-region failover, no tested restore at production scale.** | See `docs/disaster_recovery.md` §6. |
 | 8 | **No penetration test.** | Nobody has attacked this system. |
+| 9 | **No AVERIS band has been validated against physical sensors.** The transport half is automated and measured; sensor agreement, fall detection on a body, and battery life are written protocols marked as not performed. | No hardware has been attached. `docs/hardware_validation.md` §0 carries the status and refuses to be read as a report. |
 
 ---
 
@@ -223,7 +226,7 @@ Present, understood, not fixed.
 ## 8. Overall assessment
 
 The authorisation model is the strongest part of the system and is verified by
-254 assertions against the real migrations. The design decision to keep the
+267 assertions against the real migrations. The design decision to keep the
 service-role key out of the web application removes an entire class of bug, and
 it holds across every phase because there is no code path that could use the key
 if it were there.

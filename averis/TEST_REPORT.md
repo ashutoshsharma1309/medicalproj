@@ -1,6 +1,6 @@
 # AVERIS — test report
 
-Generated `2026-08-08 19:42:38 UTC` by `./run_all_tests.sh`.
+Generated `2026-08-08 20:13:16 UTC` by `./run_all_tests.sh`.
 
 > A suite that could not run is reported as **SKIPPED**, never as passed.
 > A green summary that silently omits the suites which never started is
@@ -10,11 +10,11 @@ Generated `2026-08-08 19:42:38 UTC` by `./run_all_tests.sh`.
 | Suite | Result | Detail |
 |---|---|---|
 | TypeScript type check | ✅ pass | ok |
-| TypeScript unit tests | ✅ pass | 585 tests, 585 pass |
+| TypeScript unit tests | ✅ pass | 616 tests, 616 pass |
 | Dependency audit | ✅ pass | ok |
 | Python tests | ✅ pass | 153 passed |
-| Firmware logic tests | ✅ pass | 67 checks, 67 pass |
-| Database — RLS and schema | ✅ pass | 254 assertions |
+| Firmware logic tests | ✅ pass | 91 checks, 91 pass |
+| Database — RLS and schema | ✅ pass | 267 assertions |
 
 **6 of 6 suites passed.** 0 failed, 0 skipped.
 

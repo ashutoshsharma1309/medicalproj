@@ -196,7 +196,7 @@ actually happened.
 ./run_all_tests.sh           # every suite; writes TEST_REPORT.md
 
 # or individually:
-npm test                     # 585 tests — no database, no network, no API key
+npm test                     # 616 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
 node scripts/audit-gate.mjs  # blocks on any critical, and any unargued high
@@ -206,14 +206,18 @@ node scripts/audit-gate.mjs  # blocks on any critical, and any unargued high
 iot-service/.venv/bin/python -m pytest \
   iot-service/tests ai_engine/tests services/ai-service/tests -q
 
-# 67 firmware checks — filters, fall detection, payload encoding. No ESP32.
+# 91 firmware checks — filters, fall detection, edge policy, payload encoding.
 firmware/averis-wearable/test/run.sh
 
-# 254 RLS assertions against the unmodified production migrations
+# 267 RLS assertions against the unmodified production migrations
 PG_CONTAINER=<pg-container> PG_USER=postgres ./supabase/tests/run.sh
 
 # Does a backup actually restore with its authorisation model intact?
 PG_USER=postgres ./scripts/restore-drill.sh backup.dump --with-rls
+
+# Device → backend: latency percentiles, packet loss, auth, buffered replay.
+# Measures the transport only; the sensor half needs a board and a person.
+python3 scripts/hardware-validation/transport_validation.py --url ... --token ...
 ```
 
 `run_all_tests.sh` reports a suite that could not run as SKIPPED, never as
@@ -351,6 +355,8 @@ averis/
 | [docs/personalisation.md](docs/personalisation.md) | Personal baselines, deterioration, rural mode, multi-language |
 | [docs/hardware.md](docs/hardware.md) | Pin map, wiring, BLE contract, power, accuracy limits |
 | [docs/deployment.md](docs/deployment.md) | Runtimes, environment, CI, deploy ordering |
+| [HARDWARE_SETUP_GUIDE.md](HARDWARE_SETUP_GUIDE.md) | Power path, build order, and a troubleshooting decision tree |
+| [docs/hardware_validation.md](docs/hardware_validation.md) | What is validated, what is not, and the protocol for the rest |
 | [docs/cloud_architecture.md](docs/cloud_architecture.md) | Topology, scaling, which services were *not* split out, and the partitioning cutover |
 | [docs/disaster_recovery.md](docs/disaster_recovery.md) | Backups, the restore drill, and what is not covered |
 | [docs/iot_architecture.md](docs/iot_architecture.md) | The IoT track, phase by phase |
