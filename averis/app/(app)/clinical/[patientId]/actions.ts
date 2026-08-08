@@ -7,6 +7,8 @@ import { recordAudit } from "@/lib/audit/audit-service";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { rateLimitStore } from "@/lib/security/rate-limit-store";
 import { generateReport, storeReport } from "@/lib/care/report-service";
+import { askAboutPatient } from "@/lib/care/assistant-service";
+import type { AssistantAnswer } from "@/lib/care/assistant";
 
 /**
  * The emergency response workflow.
@@ -144,4 +146,73 @@ export async function generateReportAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath(`/clinical/${patientId}`);
+}
+
+export type AssistantState = {
+  question: string;
+  answer: (AssistantAnswer & { generatedBy: string }) | null;
+  error: string | null;
+};
+
+export const EMPTY_ASSISTANT: AssistantState = { question: "", answer: null, error: null };
+
+/**
+ * Asking about a patient.
+ *
+ * The patient id comes from the form and is used only to scope an RLS-bound
+ * read — a clinician asking about someone they are not assigned to gets an
+ * answer built from an empty context ("no readings"), not a refusal, because a
+ * refusal would confirm the patient exists.
+ *
+ * The question text is never audited, only its length and the intent it was
+ * classified as. A clinician's questions about a patient are as sensitive as
+ * the chart they are about.
+ */
+export async function askAssistantAction(
+  _previous: AssistantState,
+  formData: FormData,
+): Promise<AssistantState> {
+  const patientId = String(formData.get("patientId") ?? "");
+  const question = String(formData.get("question") ?? "").trim();
+
+  if (question.length < 3) {
+    return { ...EMPTY_ASSISTANT, error: "Ask a question about this patient's monitoring data." };
+  }
+  if (!patientId) return { ...EMPTY_ASSISTANT, error: "No patient selected." };
+
+  const account = await requireUser();
+
+  const limited = await checkRateLimit(rateLimitStore(), "careAssistant", account.appUserId);
+  if (!limited.allowed) {
+    return {
+      ...EMPTY_ASSISTANT,
+      error: `You have asked a lot of questions recently. Try again in about ${Math.ceil(
+        limited.retryAfterMs / 60000,
+      )} minutes.`,
+    };
+  }
+
+  try {
+    const supabase = await createClient();
+    const answer = await askAboutPatient(supabase, patientId, question, "CLINICIAN");
+
+    await recordAudit(supabase, account.authUserId, {
+      action: "AI_QUESTION_ASKED",
+      resourceType: "CONVERSATION",
+      resourceId: patientId,
+      metadata: {
+        questionLength: question.length,
+        outcome: answer.intent,
+        model: answer.generatedBy,
+        abstained: answer.declined,
+      },
+    });
+
+    return { question, answer, error: null };
+  } catch {
+    return {
+      ...EMPTY_ASSISTANT,
+      error: "Something went wrong reading this patient's monitoring data. Try again.",
+    };
+  }
 }

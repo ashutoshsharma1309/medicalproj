@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/utils/format";
 import { LiveMonitor, type Vitals } from "./LiveMonitor";
 import type { SeriesPoint } from "@/lib/iot/series";
 import { RiskPanel, type RiskPayload } from "./RiskPanel";
+import { AskMonitoring } from "./AskMonitoring";
 
 export const metadata = { title: "Live Monitoring" };
 export const dynamic = "force-dynamic";
@@ -156,6 +157,17 @@ export default async function MonitoringPage() {
           </div>
         </Card>
       )}
+
+      <Card>
+        <CardHeader
+          eyebrow="Assistant"
+          title="Ask about your monitoring"
+          action={
+            <span className="mono text-[12.5px] text-muted">last 24 hours</span>
+          }
+        />
+        <AskMonitoring />
+      </Card>
 
       {risk && (
         <Card>

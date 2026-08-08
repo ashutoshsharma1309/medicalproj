@@ -9,6 +9,7 @@ import { RiskPanel, type RiskPayload } from "@/app/(app)/monitoring/RiskPanel";
 import { listReports } from "@/lib/care/report-service";
 import { EmergencyActions } from "./EmergencyActions";
 import { ReportPanel } from "./ReportPanel";
+import { AssistantPanel } from "./AssistantPanel";
 
 export const metadata = { title: "Patient" };
 export const dynamic = "force-dynamic";
@@ -218,6 +219,19 @@ export default async function ClinicalPatientPage(props: {
           </ul>
         </Card>
       )}
+
+      <Card>
+        <CardHeader
+          eyebrow="Assistant"
+          title="Ask about this patient"
+          action={
+            <span className="mono text-[12.5px] text-muted">
+              grounded in the last 24 hours
+            </span>
+          }
+        />
+        <AssistantPanel patientId={patientId} />
+      </Card>
 
       <Card>
         <CardHeader eyebrow="Summary" title="Patient summary" />
