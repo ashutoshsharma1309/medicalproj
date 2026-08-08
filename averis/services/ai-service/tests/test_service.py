@@ -18,18 +18,37 @@ has its own suite. They are:
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+SERVICE = pathlib.Path(__file__).resolve().parents[1]
+
+# `ai_engine` is imported by the service under test.
+sys.path.insert(0, str(ROOT))
 
 os.environ.setdefault("AI_SERVICE_TOKEN", "test-token")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.main import MAX_READINGS, app, _authorised  # noqa: E402
+# Loaded by path under a unique name rather than as `app.main`.
+#
+# Both this service and the ingest service have a package called `app`. Import
+# either as `app.main` and it lands in sys.modules under that name for the whole
+# session — so `pytest iot-service/tests services/ai-service/tests` resolves the
+# second suite's import to the *first* suite's module and fails on a missing
+# symbol. Each suite passed alone; the collision existed only when everything
+# ran together, which is what ./run_all_tests.sh does.
+_spec = importlib.util.spec_from_file_location("averis_ai_service_main", SERVICE / "app" / "main.py")
+_main = importlib.util.module_from_spec(_spec)
+sys.modules["averis_ai_service_main"] = _main
+_spec.loader.exec_module(_main)
+
+MAX_READINGS = _main.MAX_READINGS
+app = _main.app
+_authorised = _main._authorised
 
 client = TestClient(app)
 AUTH = {"Authorization": "Bearer test-token"}

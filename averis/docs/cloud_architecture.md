@@ -83,7 +83,7 @@ The brief asks for one. Building it would mean:
   see. That is exactly what Row Level Security does now, in the database, where
   it cannot be bypassed by a bug in a route handler.
 
-The net effect is replacing 267 verified policy assertions with hand-written
+The net effect is replacing 254 verified policy assertions with hand-written
 authorisation code. That is not a refactor, it is a downgrade, and the fact that
 it would produce a more conventional-looking diagram is not a reason to do it.
 

@@ -193,19 +193,33 @@ actually happened.
 ## Verification
 
 ```bash
-npm test                     # 423 tests — no database, no network, no API key
+./run_all_tests.sh           # every suite; writes TEST_REPORT.md
+
+# or individually:
+npm test                     # 585 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
+node scripts/audit-gate.mjs  # blocks on any critical, and any unargued high
 
-# 138 Python tests: wire-contract conformance, the AI engine, escalation, batching
-iot-service/.venv/bin/python -m pytest iot-service/tests ai_engine/tests -q
+# 153 Python tests: wire-contract conformance, the AI engine, escalation,
+# batching, and the inference service's auth boundary
+iot-service/.venv/bin/python -m pytest \
+  iot-service/tests ai_engine/tests services/ai-service/tests -q
 
 # 67 firmware checks — filters, fall detection, payload encoding. No ESP32.
 firmware/averis-wearable/test/run.sh
 
 # 254 RLS assertions against the unmodified production migrations
 PG_CONTAINER=<pg-container> PG_USER=postgres ./supabase/tests/run.sh
+
+# Does a backup actually restore with its authorisation model intact?
+PG_USER=postgres ./scripts/restore-drill.sh backup.dump --with-rls
 ```
+
+`run_all_tests.sh` reports a suite that could not run as SKIPPED, never as
+passed — three of them need something that may be absent (Python, a C++
+compiler, a database), and a runner that silently omits them produces a green
+summary describing a fraction of the system.
 
 Everything under `lib/` that decides something is pure or injectable, which is
 why the suite runs offline. The RLS suite applies the real migrations to a
@@ -337,9 +351,12 @@ averis/
 | [docs/personalisation.md](docs/personalisation.md) | Personal baselines, deterioration, rural mode, multi-language |
 | [docs/hardware.md](docs/hardware.md) | Pin map, wiring, BLE contract, power, accuracy limits |
 | [docs/deployment.md](docs/deployment.md) | Runtimes, environment, CI, deploy ordering |
+| [docs/cloud_architecture.md](docs/cloud_architecture.md) | Topology, scaling, which services were *not* split out, and the partitioning cutover |
+| [docs/disaster_recovery.md](docs/disaster_recovery.md) | Backups, the restore drill, and what is not covered |
 | [docs/iot_architecture.md](docs/iot_architecture.md) | The IoT track, phase by phase |
 | [docs/iot_runbook.md](docs/iot_runbook.md) | Running it end to end |
 | [HARDWARE_INTEGRATION_GUIDE.md](HARDWARE_INTEGRATION_GUIDE.md) | Bringing up a band, step by step |
+| [SECURITY_REPORT.md](SECURITY_REPORT.md) | The authorisation model, six defects found by running it, and eight known weaknesses |
 | [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Findings, fixes, and accepted risks |
 | [LOGGING_ARCHITECTURE.md](LOGGING_ARCHITECTURE.md) | What is logged, what must never be |
 | [PROJECT_COMPLETION_REPORT.md](PROJECT_COMPLETION_REPORT.md) | Built, not built, and what needs hardware |
