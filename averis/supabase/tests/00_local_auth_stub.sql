@@ -29,8 +29,19 @@ begin
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then
     create role authenticated nologin;
   end if;
+  -- Added with Phase 4b, which is the first migration to grant anything to
+  -- service_role. Without it the GRANT fails and every migration after it is
+  -- skipped — so the RLS suite would report a schema error rather than a
+  -- policy result, which is the least useful failure the suite can produce.
+  --
+  -- `bypassrls` is deliberately NOT set: the ingest service holds a key that
+  -- bypasses RLS in production, but a local role that bypassed it would make
+  -- every assertion about the service role's reach vacuously pass.
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then
+    create role service_role nologin;
+  end if;
 end
 $$;
 
-grant usage on schema auth to authenticated, anon;
+grant usage on schema auth to authenticated, anon, service_role;
 grant select on auth.users to authenticated;
