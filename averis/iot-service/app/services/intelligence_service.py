@@ -24,6 +24,7 @@ from ..escalation import (  # noqa: E402
     notice_title,
 )
 from ..store import Store  # noqa: E402
+from .ai_client import AiClient  # noqa: E402
 
 logger = logging.getLogger("averis.intelligence")
 
@@ -33,35 +34,52 @@ LOOKBACK = timedelta(hours=6)
 
 
 class IntelligenceService:
-    def __init__(self, store: Store) -> None:
+    def __init__(self, store: Store, ai: AiClient | None = None) -> None:
         self._store = store
+        # Injected so tests can drive it without a network, and defaulted so a
+        # single-container deployment needs no configuration to work.
+        self._ai = ai or AiClient()
 
     async def assess_patient(
         self, patient_id: str, now: datetime | None = None
     ) -> HealthAssessment:
+        """In-process assessment, for callers that want the typed object.
+
+        Kept on the local engine deliberately: it returns a `HealthAssessment`,
+        and reconstructing one from a remote service's JSON would be a second
+        representation of the same thing that could drift from the first.
+        """
         now = now or datetime.now(timezone.utc)
         rows = await self._store.recent_readings(patient_id, since=now - LOOKBACK)
         return analyse_stream(rows, now=now)
 
     async def assess_and_store(
         self, patient_id: str, device_id: str | None = None
-    ) -> HealthAssessment:
-        assessment = await self.assess_patient(patient_id)
-        payload = assessment.to_dict()
+    ) -> dict:
+        """Assesses, stores and escalates. Returns the assessment as a dict.
+
+        Goes through the AI client, so inference happens in the dedicated
+        service when one is configured and locally when it is not. The source
+        is stored with the prediction — a prediction whose provenance is
+        unknown is one nobody can explain later.
+        """
+        now = datetime.now(timezone.utc)
+        rows = await self._store.recent_readings(patient_id, since=now - LOOKBACK)
+        payload, source = await self._ai.assess(rows, now=now)
+        payload["inference_source"] = source
 
         try:
             await self._store.insert_prediction(patient_id, payload)
-            if assessment.insights:
-                await self._store.insert_insights(
-                    patient_id, device_id, [i.to_dict() for i in assessment.insights]
-                )
+            insights = payload.get("insights") or []
+            if insights:
+                await self._store.insert_insights(patient_id, device_id, insights)
         except Exception:  # noqa: BLE001
             # Persisting is best-effort; the caller still gets the assessment.
             logger.warning("could not store assessment for patient %s", patient_id)
 
         await self._escalate(patient_id, device_id, payload)
 
-        return assessment
+        return payload
 
     async def _escalate(
         self, patient_id: str, device_id: str | None, payload: dict

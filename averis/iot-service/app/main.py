@@ -36,6 +36,7 @@ from .config import Settings, load_settings
 from .hub import ConnectionHub
 from .batch import process_batch
 from .telemetry import parse_telemetry
+from .services.ai_client import AiClient
 from .services.intelligence_service import IntelligenceService
 from .services.sensor_processing_service import (
     ProcessingError,
@@ -61,10 +62,12 @@ async def lifespan(app: FastAPI):
     _state["settings"] = settings
     _state["store"] = Store(settings)
     _state["processing"] = SensorProcessingService(_state["store"])
-    _state["intelligence"] = IntelligenceService(_state["store"])
+    _state["ai_client"] = AiClient()
+    _state["intelligence"] = IntelligenceService(_state["store"], _state["ai_client"])
     logger.info("iot service started")
     yield
     await _state["store"].aclose()
+    await _state["ai_client"].aclose()
 
 
 app = FastAPI(title="AVERIS IoT Service", version="1.0.0", lifespan=lifespan)
@@ -351,7 +354,7 @@ async def ai_predict(request: Request, authorization: str | None = Header(defaul
 
     assessment = await intelligence.assess_and_store(device.patient_id, device.device_id)
 
-    return JSONResponse(assessment.to_dict(), status_code=200)
+    return JSONResponse(assessment, status_code=200)
 
 
 @app.get("/api/ai/model-card")
@@ -435,12 +438,19 @@ async def health_live():
 @app.get("/api/health/ready")
 async def health_ready():
     store: Store = _state["store"]
+    ai: AiClient = _state["ai_client"]
     database_ok = await store.ping()
+    ai_ok = await ai.ping()
 
     return JSONResponse(
         {
+            # The database is required; the AI service is not. Inference falls
+            # back in-process, so an unreachable model server is degraded
+            # rather than down — and reporting not_ready would take a service
+            # that can still ingest readings out of rotation.
             "status": "ready" if database_ok else "not_ready",
-            "checks": {"database": database_ok},
+            "degraded": not ai_ok,
+            "checks": {"database": database_ok, "ai_service": ai_ok},
             "websocket_connections": hub.connection_count(),
             "patients_subscribed": hub.patient_count(),
         },

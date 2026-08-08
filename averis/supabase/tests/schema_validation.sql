@@ -43,11 +43,23 @@ begin
     problems := problems + 1;
   end loop;
 
-  -- ── 2. Every RLS-enabled table has at least one policy ─────────────────
+  -- ── 2. Every table a client can reach has at least one policy ──────────
   --
-  -- RLS with no policies denies everything, which is safe but is almost never
-  -- what was meant: it is the signature of a table whose policies were
-  -- forgotten, and it fails at runtime as an empty page rather than an error.
+  -- RLS with no policies denies everything. That is a bug when someone meant
+  -- clients to read the table, and correct when they did not — and the two are
+  -- distinguishable: **a grant to a client role is the statement of intent.**
+  --
+  -- `retention_policies` is operational configuration only the worker touches.
+  -- It has RLS on and no policies because no client should ever read it, and
+  -- adding a policy that denies everything would be noise pretending to be
+  -- rigour. `sensor_readings` with a SELECT grant and no policy would be the
+  -- real bug this check exists for: somebody meant patients to read it and the
+  -- policy never landed.
+  --
+  -- So the check is scoped to tables `authenticated` or `anon` actually holds a
+  -- privilege on. The first version flagged all three operational tables and
+  -- would have been silenced by three meaningless policies — which is how a
+  -- validator stops catching the thing it was written for.
   for offender in
     select c.relname
     from pg_class c
@@ -55,11 +67,44 @@ begin
     where n.nspname = 'public'
       and c.relkind = 'r'
       and c.relrowsecurity
+      and exists (
+        select 1 from information_schema.role_table_grants g
+        where g.table_schema = 'public'
+          and g.table_name = c.relname
+          and g.grantee in ('authenticated', 'anon')
+      )
       and not exists (select 1 from pg_policies p
                       where p.schemaname = 'public' and p.tablename = c.relname)
     order by c.relname
   loop
-    raise warning 'FAIL: public.% has RLS enabled but no policies', offender.relname;
+    raise warning 'FAIL: public.% is granted to a client role but has no policies',
+      offender.relname;
+    problems := problems + 1;
+  end loop;
+
+  -- ── 2b. A table with no policies must also have no client grants ───────
+  --
+  -- The mirror of the check above, and the reason narrowing it is safe: if a
+  -- table is deliberately service-role only, a client grant appearing on it
+  -- later is the mistake — and it would otherwise be silently permitted by the
+  -- narrowed rule above.
+  for offender in
+    select c.relname
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'r'
+      and not exists (select 1 from pg_policies p
+                      where p.schemaname = 'public' and p.tablename = c.relname)
+      and exists (
+        select 1 from information_schema.role_table_grants g
+        where g.table_schema = 'public'
+          and g.table_name = c.relname
+          and g.grantee = 'anon'
+      )
+    order by c.relname
+  loop
+    raise warning 'FAIL: public.% has no policies but is granted to anon', offender.relname;
     problems := problems + 1;
   end loop;
 

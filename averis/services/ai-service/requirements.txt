@@ -1,0 +1,7 @@
+# Pinned. A model server that resolves different versions on two machines is a
+# model server whose output cannot be traced to a commit.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+numpy==2.2.1
+scikit-learn==1.6.1
+joblib==1.4.2
