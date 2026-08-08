@@ -111,6 +111,13 @@ export const AUDIT_DESCRIPTION: Record<AuditAction, string> = {
   RISK_PREDICTION_GENERATED: "AVERIS generated a risk assessment",
   AI_QUESTION_ASKED: "You asked AVERIS a question",
   REPORT_EXPLAINED: "AVERIS explained a report",
+  // Written by clinicians and caregivers, and read on their own activity page.
+  // A patient never sees these entries, because the trail is the actor's, not
+  // the subject's — a doctor's acknowledgement is an event in the doctor's log.
+  EMERGENCY_ACKNOWLEDGED: "You acknowledged an emergency event",
+  EMERGENCY_RESOLVED: "You resolved an emergency event",
+  CARE_TEAM_UPDATED: "You changed who can see your health data",
+  HEALTH_REPORT_GENERATED: "You generated a patient summary",
   SIGNED_IN: "You signed in",
   SIGNED_OUT: "You signed out",
 };

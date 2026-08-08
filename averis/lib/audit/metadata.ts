@@ -17,6 +17,10 @@ export type AuditAction =
   | "RISK_PREDICTION_GENERATED"
   | "AI_QUESTION_ASKED"
   | "REPORT_EXPLAINED"
+  | "EMERGENCY_ACKNOWLEDGED"
+  | "EMERGENCY_RESOLVED"
+  | "CARE_TEAM_UPDATED"
+  | "HEALTH_REPORT_GENERATED"
   | "SIGNED_IN"
   | "SIGNED_OUT";
 
@@ -26,7 +30,9 @@ export type AuditResource =
   | "PREDICTION"
   | "CONVERSATION"
   | "TWIN"
-  | "SESSION";
+  | "SESSION"
+  | "EMERGENCY"
+  | "REPORT";
 
 /** Metadata keys that may be recorded. Anything else is dropped. */
 const ALLOWED_METADATA_KEYS = new Set([

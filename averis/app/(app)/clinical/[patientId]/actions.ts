@@ -40,10 +40,10 @@ export async function acknowledgeEmergency(formData: FormData): Promise<void> {
     .eq("id", eventId);
 
   await recordAudit(supabase, account.authUserId, {
-    action: "RISK_PREDICTION_GENERATED",
-    resourceType: "PREDICTION",
+    action: "EMERGENCY_ACKNOWLEDGED",
+    resourceType: "EMERGENCY",
     resourceId: eventId,
-    metadata: { outcome: "emergency_acknowledged" },
+    metadata: { outcome: "acknowledged" },
   });
 
   revalidatePath(`/clinical/${patientId}`);
@@ -60,10 +60,10 @@ export async function startResponse(formData: FormData): Promise<void> {
   await supabase.from("emergency_events").update({ status: "IN_PROGRESS" }).eq("id", eventId);
 
   await recordAudit(supabase, account.authUserId, {
-    action: "RISK_PREDICTION_GENERATED",
-    resourceType: "PREDICTION",
+    action: "EMERGENCY_ACKNOWLEDGED",
+    resourceType: "EMERGENCY",
     resourceId: eventId,
-    metadata: { outcome: "emergency_in_progress" },
+    metadata: { outcome: "response_started" },
   });
 
   revalidatePath(`/clinical/${patientId}`);
@@ -91,10 +91,10 @@ export async function resolveEmergency(formData: FormData): Promise<void> {
     .eq("id", eventId);
 
   await recordAudit(supabase, account.authUserId, {
-    action: "RISK_PREDICTION_GENERATED",
-    resourceType: "PREDICTION",
+    action: "EMERGENCY_RESOLVED",
+    resourceType: "EMERGENCY",
     resourceId: eventId,
-    metadata: { outcome: "emergency_resolved" },
+    metadata: { outcome: "resolved" },
   });
 
   revalidatePath(`/clinical/${patientId}`);
