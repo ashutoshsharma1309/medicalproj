@@ -57,6 +57,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <Link href="/records" className="hover:text-brand">
                     Medical records
                   </Link>
+                  {/* Only when explicitly enabled. A guided tour is a page
+                      whose purpose is to make the system easy to drive, which
+                      is not a property a deployment serving real patients
+                      wants reachable. */}
+                  {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
+                    <Link href="/demo" className="hover:text-brand">
+                      Demo
+                    </Link>
+                  )}
                 </>
               )}
             </nav>

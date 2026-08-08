@@ -1,0 +1,36 @@
+# AVERIS — test report
+
+Generated `2026-08-08 07:33:40 UTC` by `./run_all_tests.sh`.
+
+> A suite that could not run is reported as **SKIPPED**, never as passed.
+> A green summary that silently omits the suites which never started is
+> the most common way a test runner misleads, and three of the five here
+> depend on something that may be absent.
+
+| Suite | Result | Detail |
+|---|---|---|
+| TypeScript type check | ✅ pass | ok |
+| TypeScript unit tests | ✅ pass | 443 tests, 443 pass |
+| Python tests | ✅ pass | 125 passed |
+| Firmware logic tests | ✅ pass | 67 checks, 67 pass |
+| Database — RLS and schema | ✅ pass | 237 assertions |
+
+**5 of 5 suites passed.** 0 failed, 0 skipped.
+
+## What each suite covers
+
+| Suite | Covers | Does not cover |
+|---|---|---|
+| TypeScript type check | Every type boundary in the app and `lib/` | Runtime behaviour |
+| TypeScript unit tests | Pure logic: triage, escalation, reports, assistant, validation, ML scoring | Anything needing a database, a network or a model key |
+| Python tests | The ingest validator, alert rules, escalation, telemetry, the AI engine | HTTP routing, PostgREST calls |
+| Firmware logic tests | Filtering, fall detection, payload encoding, battery curve | I²C, WiFi, BLE — mocking a MAX30102 would test the mock |
+| Database | Schema structure and RLS behaviour, against the unmodified production migrations | Application-layer authorization |
+
+## Running the parts that were skipped
+
+```bash
+npm install                                   # TypeScript suites
+pip install -r iot-service/requirements-dev.txt   # Python suites
+./scripts/setup_database.sh                   # database suites
+```
