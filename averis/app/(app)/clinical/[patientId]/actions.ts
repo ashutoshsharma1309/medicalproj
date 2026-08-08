@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/audit/audit-service";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { rateLimitStore } from "@/lib/security/rate-limit-store";
+import { generateReport, storeReport } from "@/lib/care/report-service";
 
 /**
  * The emergency response workflow.
@@ -95,6 +98,49 @@ export async function resolveEmergency(formData: FormData): Promise<void> {
     resourceType: "EMERGENCY",
     resourceId: eventId,
     metadata: { outcome: "resolved" },
+  });
+
+  revalidatePath(`/clinical/${patientId}`);
+}
+
+/**
+ * Generating a patient summary.
+ *
+ * The window is fixed by the caller's choice of hours and never by a patient
+ * id from the form — the id is used only to scope the read, and RLS decides
+ * whether that read returns anything. A clinician without an active assignment
+ * generates a summary of an empty window rather than someone else's chart.
+ *
+ * Rate-limited because each call is an outbound model request, and audited
+ * because a summary is a clinical artefact that someone put their name on.
+ */
+export async function generateReportAction(formData: FormData): Promise<void> {
+  const patientId = String(formData.get("patientId") ?? "");
+  const windowHours = Number(formData.get("windowHours") ?? 24);
+  if (!patientId) return;
+
+  const account = await requireUser();
+  const supabase = await createClient();
+
+  const limited = await checkRateLimit(rateLimitStore(), "healthReport", account.appUserId);
+  if (!limited.allowed) return;
+
+  const report = await generateReport(supabase, patientId, {
+    windowHours: [6, 24, 72].includes(windowHours) ? windowHours : 24,
+  });
+
+  await storeReport(supabase, patientId, account.appUserId, report);
+
+  await recordAudit(supabase, account.authUserId, {
+    action: "HEALTH_REPORT_GENERATED",
+    resourceType: "REPORT",
+    resourceId: patientId,
+    metadata: {
+      outcome: report.guardrailTriggered ? "guardrail_rewritten" : "generated",
+      model: report.generatedWith,
+      recordCount: report.sections.readingCount,
+      guardrailTriggered: report.guardrailTriggered,
+    },
   });
 
   revalidatePath(`/clinical/${patientId}`);

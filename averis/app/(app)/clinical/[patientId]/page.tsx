@@ -6,7 +6,9 @@ import { Card, CardHeader, Chip, Callout } from "@/components/ui";
 import { formatDate } from "@/lib/utils/format";
 import { recordAudit } from "@/lib/audit/audit-service";
 import { RiskPanel, type RiskPayload } from "@/app/(app)/monitoring/RiskPanel";
+import { listReports } from "@/lib/care/report-service";
 import { EmergencyActions } from "./EmergencyActions";
+import { ReportPanel } from "./ReportPanel";
 
 export const metadata = { title: "Patient" };
 export const dynamic = "force-dynamic";
@@ -33,7 +35,8 @@ export default async function ClinicalPatientPage(props: {
 
   if (!profile) notFound();
 
-  const [identity, prediction, emergencies, alerts, readings, insights] = await Promise.all([
+  const [identity, prediction, emergencies, alerts, readings, insights, reports] =
+    await Promise.all([
     supabase.from("users").select("full_name").eq("id", profile.user_id).maybeSingle(),
     supabase
       .from("health_predictions")
@@ -67,6 +70,7 @@ export default async function ClinicalPatientPage(props: {
       .eq("patient_id", patientId)
       .order("created_at", { ascending: false })
       .limit(8),
+    listReports(supabase, patientId),
   ]);
 
   // Opening a chart is the auditable event. Access control decides who may
@@ -214,6 +218,11 @@ export default async function ClinicalPatientPage(props: {
           </ul>
         </Card>
       )}
+
+      <Card>
+        <CardHeader eyebrow="Summary" title="Patient summary" />
+        <ReportPanel patientId={patientId} reports={reports} />
+      </Card>
 
       <Card>
         <CardHeader
