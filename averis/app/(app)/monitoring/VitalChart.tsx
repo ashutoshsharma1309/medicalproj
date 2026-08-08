@@ -7,6 +7,7 @@ import {
   VITAL_META,
   axisTicks,
   classifyVital,
+  clinicalZones,
   scaleX,
   scaleY,
   type VitalKind,
@@ -94,8 +95,33 @@ export function VitalChart({
     <figure className="m-0">
       <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span className="text-[13.5px] font-medium">{meta.label}</span>
-        <span className="mono text-[11.5px] text-muted">
-          normal {band.min}–{band.max} {meta.unit}
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {/* A legend, because a shaded band with no key is decoration. Each
+              swatch carries a word as well as a colour — the amber and red
+              tokens are indistinguishable under deuteranopia. */}
+          {(["NORMAL", "WARNING", "CRITICAL"] as const).map((status) => (
+            <span key={status} className="flex items-center gap-1">
+              <span
+                aria-hidden="true"
+                className="inline-block h-2 w-2 rounded-[2px]"
+                style={{
+                  background:
+                    status === "CRITICAL"
+                      ? "var(--color-critical)"
+                      : status === "WARNING"
+                        ? "var(--color-notice)"
+                        : "var(--color-positive)",
+                  opacity: 0.35,
+                }}
+              />
+              <span className="mono text-[10px] uppercase tracking-[0.1em] text-muted">
+                {status.toLowerCase()}
+              </span>
+            </span>
+          ))}
+          <span className="mono text-[11px] text-muted">
+            typical {band.min}–{band.max} {meta.unit}
+          </span>
         </span>
       </figcaption>
 
@@ -134,14 +160,47 @@ export function VitalChart({
           </linearGradient>
         </defs>
 
-        {/* The normal range. Drawn first so everything sits above it. */}
+        {/* Clinical zones, drawn first so everything sits above them.
+            Derived from the same rules that raise alerts, so a band can never
+            shade a value green while an alert fires beside it. Opacities are
+            deliberately low and graded — the line carries the data; these
+            answer "is that number somewhere I should care about" at a glance
+            and from across a room. */}
+        {clinicalZones(kind).map((zone) => {
+          const top = y(Math.min(domain.max, zone.to));
+          const bottom = y(Math.max(domain.min, zone.from));
+          const fill =
+            zone.status === "CRITICAL"
+              ? "var(--color-critical)"
+              : zone.status === "WARNING"
+                ? "var(--color-notice)"
+                : "var(--color-positive)";
+
+          return (
+            <rect
+              key={`${zone.from}-${zone.to}`}
+              x={PAD.left}
+              y={top}
+              width={PLOT_W}
+              height={Math.max(0, bottom - top)}
+              fill={fill}
+              opacity={zone.status === "NORMAL" ? 0.05 : zone.status === "WARNING" ? 0.08 : 0.11}
+            />
+          );
+        })}
+
+        {/* The typical resting band, outlined rather than filled — it sits
+            inside the NORMAL zone and would be invisible as another wash. */}
         <rect
           x={PAD.left}
           y={bandTop}
           width={PLOT_W}
           height={Math.max(0, bandBottom - bandTop)}
-          fill="var(--color-positive)"
-          opacity="0.07"
+          fill="none"
+          stroke="var(--color-positive)"
+          strokeOpacity="0.35"
+          strokeDasharray="2 3"
+          strokeWidth="1"
         />
 
         {/* Solid hairlines, never dashed — a dashed grid reads as a threshold. */}

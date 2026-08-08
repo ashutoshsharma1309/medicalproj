@@ -72,6 +72,72 @@ const RULES: Record<
   temperature: { criticalLow: 35.0, low: 35.5, high: 38.0, criticalHigh: 39.5 },
 };
 
+export type ClinicalZone = {
+  /** Bottom of the band, in the vital's own units. */
+  from: number;
+  to: number;
+  status: Exclude<VitalStatus, "UNKNOWN">;
+};
+
+/**
+ * The chart's background bands, derived from the alerting rules above.
+ *
+ * **Derived, not declared.** A hand-written zone table is a fourth copy of the
+ * thresholds, and the copy that drifts is the one that draws a green band under
+ * a value that just raised a critical alert. A clinician seeing a reading sit
+ * inside a "normal" zone while an alert fires beside it has been given two
+ * contradictory claims and no way to choose, so the zones are computed from
+ * `RULES` and cannot disagree with them.
+ *
+ * Returned bottom-to-top and clipped to the chart domain, so a caller can draw
+ * them in order without arithmetic.
+ */
+export function clinicalZones(kind: VitalKind): ClinicalZone[] {
+  const rule = RULES[kind];
+  const domain = CHART_DOMAIN[kind];
+
+  // Every threshold that falls inside the visible window, in order. A
+  // threshold outside the domain contributes no boundary — the zone simply
+  // runs to the edge of the chart.
+  type Boundary = {
+    at: number | undefined;
+    below: Exclude<VitalStatus, "UNKNOWN">;
+    above: Exclude<VitalStatus, "UNKNOWN">;
+  };
+
+  const boundaries: Boundary[] = [
+    { at: rule.criticalLow, below: "CRITICAL", above: "WARNING" },
+    { at: rule.low, below: "WARNING", above: "NORMAL" },
+    { at: rule.high, below: "NORMAL", above: "WARNING" },
+    { at: rule.criticalHigh, below: "WARNING", above: "CRITICAL" },
+  ];
+
+  const present = boundaries.filter(
+    (b): b is Boundary & { at: number } => typeof b.at === "number",
+  );
+
+  const zones: ClinicalZone[] = [];
+  let cursor = domain.min;
+
+  for (const boundary of present) {
+    const edge = Math.min(domain.max, Math.max(domain.min, boundary.at));
+    if (edge > cursor) {
+      zones.push({ from: cursor, to: edge, status: boundary.below });
+    }
+    cursor = edge;
+  }
+
+  if (cursor < domain.max) {
+    // Above the last threshold. For SpO2 — which has no upper thresholds at
+    // all, because there is no such thing as too much oxygen saturation — this
+    // is the single band covering everything above the warning level.
+    const last = present[present.length - 1];
+    zones.push({ from: cursor, to: domain.max, status: last ? last.above : "NORMAL" });
+  }
+
+  return zones.filter((zone) => zone.to > zone.from);
+}
+
 export function classifyVital(kind: VitalKind, value: number | null): VitalStatus {
   if (value === null || !Number.isFinite(value)) return "UNKNOWN";
 

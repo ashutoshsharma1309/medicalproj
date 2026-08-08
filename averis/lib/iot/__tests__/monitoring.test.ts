@@ -12,7 +12,7 @@ import {
   scaleY,
   worstStatus,
   type VitalKind,
-} from "../vital-status";
+  clinicalZones,} from "../vital-status";
 import {
   buildPath,
   downsample,
@@ -328,5 +328,60 @@ describe("history helpers", () => {
     // A mean of 0 BPM would render as a real measurement.
     const points = [point(0, { heartRate: null }), point(1000, { heartRate: null })];
     assert.equal(summarise(points, (p) => p.heartRate), null);
+  });
+});
+
+describe("clinical zones", () => {
+  const KINDS = ["heartRate", "spo2", "temperature"] as const;
+
+  it("agree with the classifier at every point they cover", () => {
+    // The property that matters. A green band drawn under a value that just
+    // raised a critical alert gives a clinician two contradictory claims and
+    // no way to choose between them — so the zones are derived from the same
+    // rules the classifier uses, and this asserts they cannot drift.
+    for (const kind of KINDS) {
+      for (const zone of clinicalZones(kind)) {
+        // Sampled inside the band rather than at its edges, where a boundary
+        // legitimately belongs to one side or the other.
+        const midpoint = zone.from + (zone.to - zone.from) / 2;
+        assert.equal(
+          classifyVital(kind, midpoint),
+          zone.status,
+          `${kind} at ${midpoint} is classified differently from the band drawn under it`,
+        );
+      }
+    }
+  });
+
+  it("tile the whole chart domain with no gaps or overlaps", () => {
+    for (const kind of KINDS) {
+      const zones = clinicalZones(kind);
+      const domain = CHART_DOMAIN[kind];
+
+      assert.equal(zones[0].from, domain.min, `${kind} leaves a gap at the bottom`);
+      assert.equal(zones[zones.length - 1].to, domain.max, `${kind} leaves a gap at the top`);
+
+      for (let i = 1; i < zones.length; i += 1) {
+        assert.equal(zones[i].from, zones[i - 1].to, `${kind} has a gap or overlap`);
+      }
+    }
+  });
+
+  it("gives blood oxygen no upper warning band", () => {
+    const zones = clinicalZones("spo2");
+    const top = zones[zones.length - 1];
+
+    // There is no such thing as too much oxygen saturation, and a chart that
+    // shaded 99% as a warning would be inventing a finding.
+    assert.equal(top.status, "NORMAL");
+    assert.equal(top.to, 100);
+  });
+
+  it("never emits an empty band", () => {
+    for (const kind of KINDS) {
+      for (const zone of clinicalZones(kind)) {
+        assert.ok(zone.to > zone.from, `${kind} emitted a zero-height band`);
+      }
+    }
   });
 });
