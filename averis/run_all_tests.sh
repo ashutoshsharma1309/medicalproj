@@ -108,9 +108,18 @@ summarise() {
 if command -v npx >/dev/null 2>&1 && [[ -d node_modules ]]; then
   run "TypeScript type check" "$tmp/tsc.log" npx tsc --noEmit -p tsconfig.json
   run "TypeScript unit tests" "$tmp/node.log" npm test --silent
+  # Blocks on every critical advisory and on any high not argued for in the
+  # script. Needs the network; a machine without it gets a skip rather than a
+  # pass, which is the rule this runner exists to enforce.
+  if npm ping >/dev/null 2>&1; then
+    run "Dependency audit" "$tmp/audit.log" node scripts/audit-gate.mjs
+  else
+    skip "Dependency audit" "no route to the npm registry"
+  fi
 else
   skip "TypeScript type check" "node_modules missing — run: npm install"
   skip "TypeScript unit tests" "node_modules missing — run: npm install"
+  skip "Dependency audit" "node_modules missing — run: npm install"
 fi
 
 # -------------------------------------------------------------------- Python
@@ -128,7 +137,8 @@ for candidate in "$ROOT/iot-service/.venv/bin/python" python3 python; do
 done
 
 if [[ -n "$PYTHON" ]]; then
-  run "Python tests" "$tmp/pytest.log" "$PYTHON" -m pytest iot-service/tests ai_engine/tests -q
+  run "Python tests" "$tmp/pytest.log" "$PYTHON" -m pytest \
+    iot-service/tests ai_engine/tests services/ai-service/tests -q
 else
   skip "Python tests" "no interpreter with pytest+httpx — run: pip install -r iot-service/requirements-dev.txt"
 fi
