@@ -22,6 +22,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Link href="/twin" className="hover:text-brand">
                   Health Twin
                 </Link>
+                <Link href="/clinical" className="hover:text-brand">
+                  Clinical
+                </Link>
                 <Link href="/monitoring" className="hover:text-brand">
                   Monitoring
                 </Link>
