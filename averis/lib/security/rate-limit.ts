@@ -53,6 +53,20 @@ export const RATE_LIMITS = {
   explainReport: { limit: 20, windowMs: 60 * 60 * 1000 },
   /** Risk assessment: local inference, so cheap — bounded against loops. */
   riskAssessment: { limit: 60, windowMs: 60 * 60 * 1000 },
+  /**
+   * Care team changes. The only limit here that is not about cost.
+   *
+   * `invite_caregiver` reports whether an email address has an AVERIS account,
+   * which is an enumeration oracle — accepted deliberately, because a patient
+   * adding their daughter needs to tell a typo from someone who has not signed
+   * up. Twenty an hour is generous for a real patient and useless for a script
+   * working through an address list.
+   */
+  careTeamChange: { limit: 20, windowMs: 60 * 60 * 1000 },
+  /** Report generation: a completion over a whole monitoring window. */
+  healthReport: { limit: 20, windowMs: 60 * 60 * 1000 },
+  /** The clinical assistant: one completion per question, per clinician. */
+  careAssistant: { limit: 40, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitedOperation = keyof typeof RATE_LIMITS;
