@@ -196,7 +196,7 @@ actually happened.
 ./run_all_tests.sh           # every suite; writes TEST_REPORT.md
 
 # or individually:
-npm test                     # 650 tests — no database, no network, no API key
+npm test                     # 668 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
 node scripts/audit-gate.mjs  # blocks on any critical, and any unargued high
@@ -209,11 +209,17 @@ iot-service/.venv/bin/python -m pytest \
 # 91 firmware checks — filters, fall detection, edge policy, payload encoding.
 firmware/averis-wearable/test/run.sh
 
-# 267 RLS assertions against the unmodified production migrations
+# 280 RLS assertions against the unmodified production migrations
 PG_CONTAINER=<pg-container> PG_USER=postgres ./supabase/tests/run.sh
 
 # Does a backup actually restore with its authorisation model intact?
 PG_USER=postgres ./scripts/restore-drill.sh backup.dump --with-rls
+
+# How long AVERIS takes to decide: validate → rules → escalate → notify.
+node --import tsx scripts/bench-pipeline.mjs
+
+# Fall model: cross-validated, with the operating point in field units.
+ml/.venv/bin/python ml/evaluation/validate_fall_model.py
 
 # Device → backend: latency percentiles, packet loss, auth, buffered replay.
 # Measures the transport only; the sensor half needs a board and a person.
@@ -359,6 +365,8 @@ averis/
 | [SIH_ALIGNMENT.md](SIH_ALIGNMENT.md) | Problem fit, and which problem statements this does *not* address |
 | [INNOVATION_REPORT.md](INNOVATION_REPORT.md) | What is different, and §8: what is not novel |
 | [FINAL_PROJECT_REVIEW.md](FINAL_PROJECT_REVIEW.md) | Six dimensions graded, two of them weak |
+| [VALIDATION_REPORT.md](VALIDATION_REPORT.md) | Methodology, results, and seven known limitations |
+| [END_TO_END_TEST_REPORT.md](END_TO_END_TEST_REPORT.md) | Test cases, actual results, and nine issues found |
 | [PRESENTATION.md](PRESENTATION.md) | Slide structure, speaker notes, the questions you will be asked |
 | [RESUME_DESCRIPTION.md](RESUME_DESCRIPTION.md) | Resume and portfolio text, every claim checkable |
 | [HARDWARE_SETUP_GUIDE.md](HARDWARE_SETUP_GUIDE.md) | Power path, build order, and a troubleshooting decision tree |

@@ -41,8 +41,8 @@ tempted.
 
 | Control | Verified by | Count |
 | --- | --- | --- |
-| Row Level Security policies | `supabase/tests/*_rls_verification.sql`, run against the **unmodified production migrations** | 267 assertions |
-| Application logic | `npm test` | 650 tests |
+| Row Level Security policies | `supabase/tests/*_rls_verification.sql`, run against the **unmodified production migrations** | 280 assertions |
+| Application logic | `npm test` | 668 tests |
 | Device firmware decision logic | `firmware/averis-wearable/test/run.sh`, compiled and executed on the host | 91 checks |
 | Schema invariants | `supabase/tests/schema_validation.sql` | in CI |
 | Backup integrity | `scripts/restore-drill.sh --with-rls` | 227 policies and grants diffed |
@@ -226,7 +226,7 @@ Present, understood, not fixed.
 ## 8. Overall assessment
 
 The authorisation model is the strongest part of the system and is verified by
-267 assertions against the real migrations. The design decision to keep the
+280 assertions against the real migrations. The design decision to keep the
 service-role key out of the web application removes an entire class of bug, and
 it holds across every phase because there is no code path that could use the key
 if it were there.
