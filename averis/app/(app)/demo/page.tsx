@@ -7,6 +7,7 @@ import { StepList } from "@/components/ui/clinical";
 import { loadDemoState, demoModeEnabled } from "@/lib/demo/demo-service";
 import { DemoRefresh } from "./DemoRefresh";
 import { EmergencySimulator } from "./EmergencySimulator";
+import { GuidedRun } from "./GuidedRun";
 
 export const metadata = { title: "Guided demonstration" };
 export const dynamic = "force-dynamic";
@@ -64,6 +65,20 @@ export default async function DemoPage() {
       {/* The one-click path. Placed above the checklist because it is what a
           judge should press first — the checklist then moves under them, which
           is the demonstration. */}
+      {/* The five-minute run, first on the page: it is what a judge is here
+          for, and burying it under a checklist costs the first minute. */}
+      <Card>
+        <CardHeader
+          eyebrow="One button, six steps, about ninety seconds"
+          title="Start SIH demonstration"
+        />
+        <GuidedRun
+          deviceKey={state.simulatorKey}
+          ingestUrl={process.env.NEXT_PUBLIC_IOT_HTTP_URL ?? null}
+          hasPhysicalDevice={state.unmarkedDevice}
+        />
+      </Card>
+
       <Card>
         <CardHeader
           eyebrow="One click"
