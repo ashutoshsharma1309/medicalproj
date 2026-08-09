@@ -196,7 +196,7 @@ actually happened.
 ./run_all_tests.sh           # every suite; writes TEST_REPORT.md
 
 # or individually:
-npm test                     # 616 tests — no database, no network, no API key
+npm test                     # 650 tests — no database, no network, no API key
 npx tsc --noEmit             # type check
 npm run build                # production build
 node scripts/audit-gate.mjs  # blocks on any critical, and any unargued high
@@ -355,6 +355,12 @@ averis/
 | [docs/personalisation.md](docs/personalisation.md) | Personal baselines, deterioration, rural mode, multi-language |
 | [docs/hardware.md](docs/hardware.md) | Pin map, wiring, BLE contract, power, accuracy limits |
 | [docs/deployment.md](docs/deployment.md) | Runtimes, environment, CI, deploy ordering |
+| [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md) | Abstract, architecture diagrams, models, results, future scope |
+| [SIH_ALIGNMENT.md](SIH_ALIGNMENT.md) | Problem fit, and which problem statements this does *not* address |
+| [INNOVATION_REPORT.md](INNOVATION_REPORT.md) | What is different, and §8: what is not novel |
+| [FINAL_PROJECT_REVIEW.md](FINAL_PROJECT_REVIEW.md) | Six dimensions graded, two of them weak |
+| [PRESENTATION.md](PRESENTATION.md) | Slide structure, speaker notes, the questions you will be asked |
+| [RESUME_DESCRIPTION.md](RESUME_DESCRIPTION.md) | Resume and portfolio text, every claim checkable |
 | [HARDWARE_SETUP_GUIDE.md](HARDWARE_SETUP_GUIDE.md) | Power path, build order, and a troubleshooting decision tree |
 | [docs/hardware_validation.md](docs/hardware_validation.md) | What is validated, what is not, and the protocol for the rest |
 | [docs/cloud_architecture.md](docs/cloud_architecture.md) | Topology, scaling, which services were *not* split out, and the partitioning cutover |

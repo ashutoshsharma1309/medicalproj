@@ -42,7 +42,7 @@ tempted.
 | Control | Verified by | Count |
 | --- | --- | --- |
 | Row Level Security policies | `supabase/tests/*_rls_verification.sql`, run against the **unmodified production migrations** | 267 assertions |
-| Application logic | `npm test` | 616 tests |
+| Application logic | `npm test` | 650 tests |
 | Device firmware decision logic | `firmware/averis-wearable/test/run.sh`, compiled and executed on the host | 91 checks |
 | Schema invariants | `supabase/tests/schema_validation.sql` | in CI |
 | Backup integrity | `scripts/restore-drill.sh --with-rls` | 227 policies and grants diffed |
