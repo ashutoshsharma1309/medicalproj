@@ -74,15 +74,71 @@ run_sql "$ROOT/supabase/tests/schema_validation.sql"
 
 # Ordered by filename so a new phase is picked up automatically. Phase 1's file
 # predates the naming convention, so it is applied first by name.
-for assertions in \
-  "$ROOT/supabase/tests/rls_verification.sql" \
-  "$ROOT"/supabase/tests/phase*_rls_verification.sql \
-  "$ROOT"/supabase/tests/iot_*_rls_verification.sql \
-  "$ROOT/supabase/tests/device_auth_verification.sql"
-do
-  [ -f "$assertions" ] || continue
-  echo "▸ Running $(basename "$assertions")"
-  run_sql "$assertions"
+# An explicit, ordered list — not a glob, and not a sort.
+#
+# These suites share one database and build on each other's fixtures: Phase 4b
+# asserts on a care team Phase 4 created. That makes the order part of the
+# contract, and encoding a contract in a filename sort is how it gets broken by
+# accident.
+#
+# Two sorts were tried here and both were wrong. A plain glob puts `iot_phase11`
+# before `iot_phase1`, because '1' sorts below '_'. `sort -V` fixes that and
+# then puts `iot_phase4b` before `iot_phase4`. Each failure presented as an
+# assertion failing deep inside an unrelated suite.
+#
+# The guard below makes the list self-maintaining: any *_verification.sql file
+# in this directory that is not named here fails the run, so a new suite cannot
+# be silently skipped by being forgotten.
+suites=(
+  "rls_verification.sql"
+  "phase2_rls_verification.sql"
+  "phase3_rls_verification.sql"
+  "phase4_rls_verification.sql"
+  "phase5_rls_verification.sql"
+  "phase6_rls_verification.sql"
+  "iot_phase1_rls_verification.sql"
+  "iot_phase4_rls_verification.sql"
+  "iot_phase4b_rls_verification.sql"
+  "iot_phase5_rls_verification.sql"
+  "iot_phase7_rls_verification.sql"
+  "iot_phase9_rls_verification.sql"
+  # Phase 11 last: it is a whole-system suite and adds a third patient, so it
+  # must not perturb the per-feature suites that run before it.
+  "iot_phase11_rls_verification.sql"
+  "device_auth_verification.sql"
+)
+
+for name in "${suites[@]}"; do
+  path="$ROOT/supabase/tests/$name"
+  if [ ! -f "$path" ]; then
+    echo "▸ ERROR: $name is listed in run.sh but does not exist." >&2
+    exit 1
+  fi
+  echo "▸ Running $name"
+  run_sql "$path"
 done
+
+# Every verification file must be in the list above.
+#
+# A file that is not runs never, while the summary reports success — the worst
+# failure a test runner has, because it is indistinguishable from passing. This
+# caught a Phase 11 suite sitting unexecuted in the directory.
+missed=0
+for candidate in "$ROOT"/supabase/tests/*_verification.sql; do
+  base="$(basename "$candidate")"
+  found=0
+  for name in "${suites[@]}"; do
+    [ "$name" = "$base" ] && found=1 && break
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "▸ ERROR: $base exists but is not listed in run.sh — it did NOT run." >&2
+    missed=$((missed + 1))
+  fi
+done
+
+if [ "$missed" -gt 0 ]; then
+  echo "▸ $missed verification file(s) were skipped. Refusing to report success." >&2
+  exit 1
+fi
 
 echo "▸ All checks passed."
