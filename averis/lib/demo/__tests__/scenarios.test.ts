@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { CARDIAC, FALL, LOW_OXYGEN, SCENARIOS, toReadingInput } from "../scenarios";
+import {
+  CARDIAC,
+  FALL,
+  LOW_OXYGEN,
+  RURAL_OFFLINE,
+  SCENARIOS,
+  replayAcrossOutage,
+  toReadingInput,
+} from "../scenarios";
 import { THRESHOLDS, evaluateReading, highestSeverity } from "@/lib/iot/alert-rules";
 import { fromAlerts } from "@/lib/care/escalation";
 
@@ -194,5 +202,87 @@ describe("the scenarios are isolated from one another", () => {
       assert.ok(scenario.premise.length > 30, `${scenario.id} has no premise`);
       assert.ok(scenario.expectation.length > 30, `${scenario.id} has no expectation`);
     }
+  });
+});
+
+describe("scenario 4 — rural connectivity", () => {
+  // 30 readings at two-minute intervals: 0 through 58 minutes, with the
+  // network gone from minute 4 to minute 20.
+  const result = replayAcrossOutage(30);
+
+  it("loses nothing across a sixteen-minute outage", () => {
+    assert.equal(result.lost, 0);
+    assert.equal(result.stored.length, 30);
+  });
+
+  it("stores every reading at the time it was measured, not delivered", () => {
+    // The assertion this scenario exists for. An outage that rewrites the
+    // vitals into a burst at reconnection is worse than one that loses them:
+    // the burst looks like a clinical event.
+    const replayed = result.stored.filter((r) => r.deliveredAtMs !== r.measuredAtMs);
+
+    assert.ok(replayed.length > 0, "the outage must actually have buffered something");
+
+    for (const row of replayed) {
+      assert.ok(
+        row.deliveredAtMs > row.measuredAtMs,
+        "a replayed reading was delivered before it was measured",
+      );
+    }
+
+    // Every measurement time is distinct and evenly spaced — a continuous
+    // series, not a pile.
+    const times = result.stored.map((r) => r.measuredAtMs);
+    assert.equal(new Set(times).size, times.length, "measurement times collided");
+  });
+
+  it("keeps the stored series in order", () => {
+    // Buffered readings are replayed before the live one, or the series
+    // arrives out of order and every trend computed from it is wrong.
+    const times = result.stored.map((r) => r.measuredAtMs);
+    const sorted = [...times].sort((a, b) => a - b);
+
+    assert.deepEqual(times, sorted);
+  });
+
+  it("delivers the whole backlog at the first opportunity", () => {
+    // All eight buffered readings share one delivery time: the moment the link
+    // came back. A band that dribbled them out one per interval would take
+    // sixteen minutes to catch up on a sixteen-minute outage and never converge
+    // on a worse link.
+    const reconnection = result.stored.filter((r) => r.deliveredAtMs !== r.measuredAtMs);
+    const deliveryTimes = new Set(reconnection.map((r) => r.deliveredAtMs));
+
+    assert.equal(deliveryTimes.size, 1);
+    assert.equal(reconnection.length, 8, "sixteen minutes at two-minute intervals is eight readings");
+  });
+
+  it("drops the oldest when the buffer fills, never the newest", () => {
+    // A day-long outage overruns the 90-slot buffer. What survives must be the
+    // recent readings: after an hour offline the newest are the ones describing
+    // the patient now.
+    const longOutage = replayAcrossOutage(200, {
+      ...RURAL_OFFLINE,
+      outageStartMs: 0,
+      outageEndMs: 195 * RURAL_OFFLINE.intervalMs,
+    });
+
+    assert.ok(longOutage.lost > 0, "the buffer must actually have overflowed");
+
+    const replayed = longOutage.stored.filter((r) => r.deliveredAtMs !== r.measuredAtMs);
+    assert.equal(replayed.length, RURAL_OFFLINE.bufferCapacity);
+
+    // The survivors are the last 90 taken before the link returned, not the
+    // first 90 taken after it went.
+    const oldestKept = Math.min(...replayed.map((r) => r.measuredAtMs));
+    assert.ok(
+      oldestKept > 0,
+      "the buffer kept the oldest readings and discarded the recent ones",
+    );
+  });
+
+  it("states a premise and an expectation like the clinical scenarios", () => {
+    assert.ok(RURAL_OFFLINE.premise.length > 30);
+    assert.ok(RURAL_OFFLINE.expectation.length > 30);
   });
 });

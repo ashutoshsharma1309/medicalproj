@@ -163,3 +163,93 @@ export function toReadingInput(
     recordedAt: new Date(now.getTime() - reading.minutesAgo * 60_000).toISOString(),
   };
 }
+
+/* ===========================================================================
+ * Scenario 4 — rural connectivity
+ *
+ * The other three scenarios are about a patient's physiology. This one is about
+ * the link, and it belongs beside them because in a rural deployment the link
+ * is the failure mode that actually happens: not a sensor fault, not a
+ * misclassified fall, but four hours with no network.
+ *
+ * The property under test is easy to get wrong and invisible when you do: **a
+ * replayed reading must land at the time it was measured, not the time it was
+ * delivered.** An outage that rewrites sixteen minutes of vitals into a burst at
+ * the reconnection moment is worse than an outage that loses them, because the
+ * burst looks like a clinical event — a patient whose heart rate "jumped" eight
+ * times in one second.
+ * =========================================================================== */
+
+export type ReplayResult = {
+  /** Readings in the order they should be stored. */
+  stored: { measuredAtMs: number; deliveredAtMs: number }[];
+  /** Readings the buffer had to drop. */
+  lost: number;
+};
+
+export const RURAL_OFFLINE = {
+  id: "rural_offline" as const,
+  title: "Rural connectivity",
+  premise:
+    "A band in a village measures every two minutes. The network is unavailable for sixteen " +
+    "minutes. Eight readings are taken with nothing listening.",
+  expectation:
+    "All eight are buffered and replayed on reconnection, each landing at the minute it was " +
+    "measured. Nothing is lost, and the stored series shows a continuous sixteen minutes " +
+    "rather than a burst at the reconnection moment.",
+  /** Measurement interval, matching the firmware default. */
+  intervalMs: 120_000,
+  outageStartMs: 240_000,
+  outageEndMs: 1_200_000,
+  /** Slots in the device's RAM buffer, mirrored to NVS. Matches net.h. */
+  bufferCapacity: 90,
+};
+
+/**
+ * Models what the band does across an outage.
+ *
+ * Deliberately a pure function over timestamps rather than a mock of the HTTP
+ * client. What is worth testing is the *policy* — buffer while offline, replay
+ * in order on reconnect, keep the measurement time, drop oldest when full — and
+ * that policy is the same whether the transport is WiFi, BLE, or a van that
+ * visits the village on Tuesdays.
+ *
+ * `firmware/.../net.h` implements it on the device and `iot-service/app/batch.py`
+ * accepts the replay. This is the shared statement of what both must do.
+ */
+export function replayAcrossOutage(
+  totalReadings: number,
+  options = RURAL_OFFLINE,
+): ReplayResult {
+  const buffer: number[] = [];
+  const stored: { measuredAtMs: number; deliveredAtMs: number }[] = [];
+  let lost = 0;
+
+  for (let i = 0; i < totalReadings; i += 1) {
+    const measuredAtMs = i * options.intervalMs;
+    const offline =
+      measuredAtMs >= options.outageStartMs && measuredAtMs < options.outageEndMs;
+
+    if (offline) {
+      buffer.push(measuredAtMs);
+
+      // Oldest first when full. Dropping the newest would be easier and is
+      // wrong: after an hour offline the newest readings are the ones
+      // describing the patient now.
+      if (buffer.length > options.bufferCapacity) {
+        buffer.shift();
+        lost += 1;
+      }
+      continue;
+    }
+
+    // Online. Anything buffered goes first, so the stored series stays ordered.
+    while (buffer.length > 0) {
+      stored.push({ measuredAtMs: buffer.shift()!, deliveredAtMs: measuredAtMs });
+    }
+
+    stored.push({ measuredAtMs, deliveredAtMs: measuredAtMs });
+  }
+
+  return { stored, lost };
+}
