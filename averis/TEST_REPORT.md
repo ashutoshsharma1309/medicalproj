@@ -1,6 +1,6 @@
 # AVERIS — test report
 
-Generated `2026-08-09 08:05:44 UTC` by `./run_all_tests.sh`.
+Generated `2026-08-12 12:15:58 UTC` by `./run_all_tests.sh`.
 
 > A suite that could not run is reported as **SKIPPED**, never as passed.
 > A green summary that silently omits the suites which never started is
