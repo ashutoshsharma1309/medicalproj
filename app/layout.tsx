@@ -20,11 +20,11 @@ const serifDisplay = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: {
-    default: "Meridian — Clinical Intelligence Platform",
-    template: "%s · Meridian",
+    default: "CareBridge — AI-Powered Pre-Consultation Assistant",
+    template: "%s · CareBridge",
   },
   description:
-    "Meridian turns scattered patient data into actionable clinical intelligence: structured patient profiles, explainable risk analysis, medication safety and documentation support.",
+    "CareBridge helps you describe your symptoms, answers relevant follow-up questions, and prepares a concise, doctor-ready summary you can share before your consultation.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -252,3 +252,244 @@ textarea.field { resize: vertical; min-height: 96px; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ==================================================================== */
+/* CareBridge design tokens — separate, additive design system for the  */
+/* new patient-facing CareBridge experience (app/page.tsx, app/         */
+/* assessment/**). Namespaced with a `cb-` prefix throughout so it      */
+/* never overrides the Meridian tokens/classes above, which the old     */
+/* clinic/admin/portal pages still use unchanged.                       */
+/* Direction: calm, trustworthy medical blue; neutral slate surfaces;   */
+/* status color reserved strictly for clinical meaning (never decor).   */
+/* ==================================================================== */
+
+@theme {
+  --color-cb-bg: #f8fafc;
+  --color-cb-surface: #ffffff;
+  --color-cb-ink: #0f172a;
+  --color-cb-muted: #475569;
+  --color-cb-faint: #94a3b8;
+  --color-cb-border: #e2e8f0;
+  --color-cb-border-strong: #cbd5e1;
+
+  --color-cb-primary: #1d4ed8;
+  --color-cb-primary-dark: #1e3a8a;
+  --color-cb-primary-light: #3b82f6;
+  --color-cb-primary-wash: #eff6ff;
+  --color-cb-primary-line: #bfdbfe;
+
+  --color-cb-success: #15803d;
+  --color-cb-success-wash: #f0fdf4;
+  --color-cb-success-line: #bbf7d0;
+  --color-cb-warning: #b45309;
+  --color-cb-warning-wash: #fffbeb;
+  --color-cb-warning-line: #fde68a;
+  --color-cb-danger: #b91c1c;
+  --color-cb-danger-wash: #fef2f2;
+  --color-cb-danger-line: #fecaca;
+
+  --shadow-cb-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-cb-pop: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.cb-app {
+  background: var(--color-cb-bg);
+  color: var(--color-cb-ink);
+  min-height: 100vh;
+}
+
+.cb-app :focus-visible {
+  outline: 2px solid var(--color-cb-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.cb-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-cb-primary);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 0;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.cb-skip-link:focus {
+  left: 0;
+}
+
+/* ---------- surfaces ---------- */
+
+.cb-card {
+  background: var(--color-cb-surface);
+  border: 1px solid var(--color-cb-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-cb-card);
+}
+
+.cb-card-pop {
+  box-shadow: var(--shadow-cb-pop);
+}
+
+/* ---------- buttons (44px+ touch target) ---------- */
+
+.cb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  white-space: nowrap;
+}
+.cb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.cb-btn-primary { background: var(--color-cb-primary); color: #fff; }
+.cb-btn-primary:hover:not(:disabled) { background: var(--color-cb-primary-dark); }
+
+.cb-btn-secondary {
+  background: var(--color-cb-surface);
+  color: var(--color-cb-ink);
+  border-color: var(--color-cb-border-strong);
+}
+.cb-btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-cb-primary);
+  color: var(--color-cb-primary);
+}
+
+.cb-btn-ghost { background: transparent; color: var(--color-cb-muted); }
+.cb-btn-ghost:hover:not(:disabled) { color: var(--color-cb-ink); background: var(--color-cb-primary-wash); }
+
+.cb-btn-block { width: 100%; }
+
+/* ---------- forms ---------- */
+
+.cb-field {
+  width: 100%;
+  background: var(--color-cb-surface);
+  border: 1px solid var(--color-cb-border-strong);
+  border-radius: 10px;
+  padding: 11px 14px;
+  min-height: 44px;
+  font-size: 14.5px;
+  color: var(--color-cb-ink);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.cb-field:focus {
+  outline: none;
+  border-color: var(--color-cb-primary);
+  box-shadow: 0 0 0 3px var(--color-cb-primary-wash);
+}
+.cb-field::placeholder { color: var(--color-cb-faint); }
+textarea.cb-field { resize: vertical; min-height: 88px; line-height: 1.6; }
+
+.cb-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-cb-ink);
+  margin-bottom: 6px;
+}
+
+.cb-hint {
+  font-size: 12.5px;
+  color: var(--color-cb-muted);
+  margin-top: 5px;
+}
+
+/* ---------- status chips (icon + text + color — never color alone) ---------- */
+
+.cb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.cb-status-routine  { color: var(--color-cb-success); background: var(--color-cb-success-wash); border-color: var(--color-cb-success-line); }
+.cb-status-consult  { color: var(--color-cb-warning); background: var(--color-cb-warning-wash); border-color: var(--color-cb-warning-line); }
+.cb-status-urgent   { color: var(--color-cb-danger);  background: var(--color-cb-danger-wash);  border-color: var(--color-cb-danger-line); }
+.cb-status-neutral  { color: var(--color-cb-muted);   background: var(--color-cb-bg);           border-color: var(--color-cb-border-strong); }
+
+/* ---------- progress ---------- */
+
+.cb-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-cb-border);
+  overflow: hidden;
+}
+.cb-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-cb-primary);
+  transition: width 200ms ease;
+}
+
+/* ---------- chat ---------- */
+
+.cb-bubble {
+  max-width: 34rem;
+  padding: 11px 15px;
+  border-radius: 16px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cb-bubble-assistant {
+  background: var(--color-cb-surface);
+  border: 1px solid var(--color-cb-border);
+  color: var(--color-cb-ink);
+  border-top-left-radius: 4px;
+}
+.cb-bubble-user {
+  background: var(--color-cb-primary);
+  color: #fff;
+  border-top-right-radius: 4px;
+}
+
+.cb-quick-reply {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-cb-primary-line);
+  background: var(--color-cb-primary-wash);
+  color: var(--color-cb-primary-dark);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.cb-quick-reply:hover:not(:disabled) { background: var(--color-cb-primary-line); }
+.cb-quick-reply:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.cb-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-cb-faint);
+  animation: cb-typing-bounce 1.2s infinite ease-in-out;
+}
+.cb-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.cb-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cb-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+.cb-divider { border-top: 1px solid var(--color-cb-border); }
